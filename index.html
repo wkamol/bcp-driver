@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>🚚 Driver App</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0b1520;--bg2:#111e2d;--bg3:#17263a;
+  --border:#243447;--border2:#2e4460;
+  --text:#dce8f5;--text2:#7a9dbf;--text3:#3d5a78;
+  --green:#10b981;--gbg:#082718;--gbdr:#0f4a2e;
+  --amber:#f59e0b;--abg:#1f1508;--abdr:#5c3a08;
+  --red:#ef4444;--rbg:#1e0a0a;--rbdr:#5a1818;
+  --blue:#38bdf8;--bbg:#06192a;--bbdr:#0e3d5c;
+  --purple:#a78bfa;--pbg:#1a1030;--pbdr:#4c3580;
+  --orange:#fb923c;--obg:#1f1008;--obdr:#6b3410;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Thai',sans-serif;overflow:hidden}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .28s}
+.scr.off{transform:translateY(44px);opacity:0;pointer-events:none}
+
+/* SETUP */
+.setup-body{flex:1;overflow-y:auto;padding:max(env(safe-area-inset-top,28px),28px) 22px max(env(safe-area-inset-bottom,24px),24px);display:flex;flex-direction:column;gap:15px}
+.logo{font-size:48px;text-align:center}
+.setup-h{font-size:21px;font-weight:700;text-align:center;line-height:1.3}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:5px}
+input{width:100%;padding:13px 15px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:16px;font-family:inherit}
+input:focus{outline:none;border-color:var(--blue)}
+.btn-primary{width:100%;padding:16px;border-radius:13px;border:none;background:var(--blue);color:#fff;font-size:17px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-primary:active{opacity:.82}
+.cfg-box{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 15px}
+.cfg-head{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:10px}
+
+/* LOADING */
+.loading-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:24px}
+.spinner{width:42px;height:42px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-h{font-size:15px;font-weight:500;color:var(--text)}
+.loading-sub{font-size:12px;color:var(--text3);text-align:center;line-height:1.6}
+.loading-steps{display:flex;flex-direction:column;gap:8px;margin-top:8px;width:100%;max-width:260px}
+.lstep{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
+.lstep.done{color:var(--green)}
+.lstep.active{color:var(--blue)}
+.lstep-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.lstep.done .lstep-dot{background:var(--green)}
+.lstep.active .lstep-dot{background:var(--blue);animation:gp 1s infinite}
+@keyframes gp{0%,100%{box-shadow:0 0 0 0 rgba(56,189,248,.5)}60%{box-shadow:0 0 0 4px rgba(56,189,248,0)}}
+
+/* TOPBAR */
+.topbar{padding:max(env(safe-area-inset-top,0px),48px) 18px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.tb-row{display:flex;align-items:center;justify-content:space-between}
+.tb-name{font-size:16px;font-weight:700;color:var(--text)}
+.tb-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.pill{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;border:1px solid}
+.pill-live{background:var(--obg);border-color:var(--obdr)}
+.pill-gps{background:var(--gbg);border-color:var(--gbdr)}
+.pill-off{background:var(--bg3);border-color:var(--border)}
+.pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pdot-live{background:var(--orange);animation:gp 1.4s infinite}
+.pdot-gps{background:var(--green);animation:gp 1.6s infinite}
+.pdot-off{background:var(--text3)}
+.ptxt{font-size:11px;font-weight:500}
+.ptxt-live{color:var(--orange)}
+.ptxt-gps{color:var(--green)}
+.ptxt-off{color:var(--text3)}
+
+/* SCROLL */
+.scroll{flex:1;overflow-y:auto;padding:13px 17px 100px;display:flex;flex-direction:column;gap:10px}
+.scroll::-webkit-scrollbar{display:none}
+
+/* NEW JOB */
+.new-job{border-radius:15px;overflow:hidden;border:1.5px solid var(--abdr);animation:pop .22s ease}
+@keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+.nj-head{background:var(--abg);padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--abdr)}
+.nj-badge{font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.04em}
+.nj-time{margin-left:auto;font-size:11px;color:var(--amber);opacity:.7}
+.nj-body{background:var(--bg2);padding:14px}
+.nj-dest{font-size:20px;font-weight:700;color:var(--text);margin-bottom:2px}
+.nj-sub{font-size:13px;color:var(--text2);margin-bottom:11px}
+.nj-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.nj-m{background:var(--bg3);border-radius:10px;padding:8px 10px;text-align:center}
+.nj-ml{font-size:10px;color:var(--text3);margin-bottom:2px}
+.nj-mv{font-size:14px;font-weight:600;color:var(--text)}
+.nearest-row{display:flex;align-items:center;gap:8px;background:var(--pbg);border:1px solid var(--pbdr);border-radius:10px;padding:8px 12px;margin-bottom:12px}
+.nearest-me{border-color:var(--gbdr);background:var(--gbg)}
+.nearest-txt{font-size:12px;color:var(--text2);flex:1}
+.nearest-val{font-size:13px;font-weight:700;color:var(--purple)}
+.nearest-me .nearest-val{color:var(--green)}
+.nj-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.btn-no{padding:15px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:16px;font-weight:500;font-family:inherit;cursor:pointer}
+.btn-yes{padding:15px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-yes:active,.btn-no:active{opacity:.75}
+
+/* ACTIVE JOB */
+.active-job{background:var(--bg2);border:1px solid var(--bbdr);border-radius:15px;overflow:hidden}
+.aj-head{background:var(--bbg);border-bottom:1px solid var(--bbdr);padding:9px 14px;display:flex;align-items:center;justify-content:space-between}
+.aj-label{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.04em}
+.aj-trip{font-size:12px;color:var(--blue);opacity:.7}
+.aj-body{padding:14px}
+.aj-dest{font-size:20px;font-weight:700;color:var(--text);margin-bottom:2px}
+.aj-sub{font-size:13px;color:var(--text2);margin-bottom:15px}
+.btn-done{width:100%;padding:18px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-done:active{opacity:.85;transform:scale(.98)}
+
+/* MAP */
+#leaflet-map{height:210px;width:100%}
+#leaflet-map-full{height:100%;width:100%}
+.leaflet-container{background:#0b1520}
+.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border2)}
+.route-bar{background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:9px 13px;display:flex;align-items:center;gap:11px}
+.rdivider{width:1px;height:26px;background:var(--border);flex-shrink:0}
+.rlabel{font-size:11px;color:var(--text3)}
+.rval{font-size:14px;font-weight:600;color:var(--text)}
+.btn-maps{width:100%;padding:11px;border-radius:11px;border:1px solid var(--border2);background:var(--bg3);color:var(--blue);font-size:13px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-maps:active{opacity:.75}
+.lf-tip{background:rgba(11,21,32,.93)!important;border:1px solid var(--abdr)!important;color:var(--amber)!important;font-family:IBM Plex Sans Thai,sans-serif!important;font-size:12px!important;font-weight:600!important;border-radius:8px!important;padding:4px 10px!important;box-shadow:none!important;white-space:nowrap}
+.lf-tip::before{display:none!important}
+
+/* READY */
+.ready-card{background:var(--bg2);border:1px solid var(--border);border-radius:15px;padding:32px 16px;text-align:center}
+.ready-icon{font-size:42px;margin-bottom:10px}
+.ready-h{font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px}
+.ready-sub{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* FIREBASE STATUS */
+.fb-bar{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--bg2);border:1px solid var(--border);border-radius:11px}
+.fb-icon{font-size:16px}
+.fb-txt{font-size:12px;color:var(--text2);flex:1}
+.fb-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.fb-badge-live{background:var(--obg);color:var(--orange);border:1px solid var(--obdr)}
+.fb-badge-off{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+
+/* GPS */
+.gps-card{background:var(--gbg);border:1px solid var(--gbdr);border-radius:11px;padding:9px 13px;display:flex;align-items:center;gap:10px}
+.gps-card.off{background:var(--bg3);border-color:var(--border)}
+.gcoord{font-size:11px;color:var(--green);font-family:monospace}
+.gcoord.off{color:var(--text3)}
+.gnext{font-size:10px;color:var(--text3);margin-top:1px}
+
+/* HISTORY */
+.hist-card{background:var(--bg2);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.hist-head{padding:8px 13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.hist-title{font-size:12px;font-weight:500;color:var(--text2)}
+.hist-ct{font-size:12px;color:var(--text3)}
+.hist-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--border)}
+.hist-item:last-child{border-bottom:none}
+.hd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ht{font-size:11px;color:var(--text3);width:33px;flex-shrink:0}
+.hx{font-size:12px;color:var(--text2)}
+
+/* JOBS */
+.jcard{background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:12px 14px;margin-bottom:9px}
+.jcard-dest{font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px}
+.jcard-sub{font-size:12px;color:var(--text2);margin-bottom:8px}
+.jcard-meta{display:flex;gap:12px;font-size:12px;color:var(--text3)}
+.tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.tg{background:var(--gbg);color:var(--green);border:1px solid var(--gbdr)}
+.tb{background:var(--bbg);color:var(--blue);border:1px solid var(--bbdr)}
+.ta{background:var(--abg);color:var(--amber);border:1px solid var(--abdr)}
+.tr{background:var(--rbg);color:var(--red);border:1px solid var(--rbdr)}
+
+/* BOTTOM NAV */
+.bnav{background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-shrink:0;padding-bottom:max(env(safe-area-inset-bottom,0px),14px);position:sticky;bottom:0;z-index:10}
+.nbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border:none;background:none;color:var(--text3);font-family:inherit;cursor:pointer;font-size:10px;position:relative}
+.nbtn.on{color:var(--blue)}
+.nicon{font-size:22px;line-height:1}
+.nbadge{position:absolute;top:7px;right:calc(50% - 18px);background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 5px;display:none;min-width:16px;text-align:center}
+
+/* SHEET */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:80;opacity:0;transition:opacity .22s;pointer-events:none;display:flex;align-items:flex-end}
+.sheet-bg.open{opacity:1;pointer-events:all}
+.sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:20px 18px 36px;width:100%;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.sheet-bg.open .sheet{transform:translateY(0)}
+.sheet-title{font-size:15px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px}
+.sopt{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;text-align:left;margin-bottom:8px;display:block}
+.sopt:active{opacity:.7}
+.scancel{width:100%;padding:13px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:15px;font-family:inherit;cursor:pointer;margin-top:4px}
+
+.toast{position:fixed;top:54px;left:50%;transform:translateX(-50%) translateY(-4px);background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:9px 18px;font-size:13px;color:var(--text);white-space:nowrap;z-index:999;opacity:0;transition:opacity .18s,transform .18s;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.shake{animation:shake .3s ease 2}
+</style>
+</head>
+<body>
+
+<!-- ══════ SETUP ══════ -->
+<div class="scr" id="s-setup">
+  <div class="setup-body" style="justify-content:center">
+    <div><div class="logo">🚚</div><div class="setup-h" style="margin-top:8px">Driver App<br>รถน้ำ BCP</div></div>
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <div><label>หมายเลขรถน้ำ *</label><input id="i-truck" type="text" placeholder="เช่น WT-01-015" autocomplete="off"/></div>
+      <div><label>ชื่อคนขับ *</label><input id="i-name" type="text" placeholder="ชื่อ-นามสกุล" autocomplete="off"/></div>
+    </div>
+    <button class="btn-primary" onclick="startApp()">เริ่มใช้งาน →</button>
+    <div style="font-size:11px;color:var(--text3);text-align:center;line-height:1.7">
+      🔥 เชื่อมต่อ Firebase อัตโนมัติ<br>GPS ส่งทุก 5 นาที · กดแค่ 2 ปุ่ม
+    </div>
+  </div>
+</div>
+
+<!-- ══════ LOADING ══════ -->
+<div class="scr off" id="s-loading">
+  <div class="loading-body">
+    <div class="spinner"></div>
+    <div class="loading-h">กำลังเชื่อมต่อ...</div>
+    <div class="loading-sub" id="loading-sub">เชื่อมต่อ Firebase Realtime Database</div>
+    <div class="loading-steps">
+      <div class="lstep" id="lstep-fb"><div class="lstep-dot"></div>Firebase Realtime DB</div>
+      <div class="lstep" id="lstep-gps"><div class="lstep-dot"></div>รับสัญญาณ GPS</div>
+      <div class="lstep" id="lstep-jobs"><div class="lstep-dot"></div>ดึงงานของคุณ</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MAIN ══════ -->
+<div class="scr off" id="s-main">
+  <div class="topbar">
+    <div class="tb-row">
+      <div><div class="tb-name" id="d-name">คนขับ</div><div class="tb-sub" id="d-truck">WT-00-000</div></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="pill pill-live" id="fb-pill">
+          <div class="pdot pdot-live" id="fb-dot"></div>
+          <span class="ptxt ptxt-live" id="fb-txt">Live</span>
+        </div>
+        <div class="pill pill-gps" id="gps-pill">
+          <div class="pdot pdot-gps" id="gdot"></div>
+          <span class="ptxt ptxt-gps" id="gtxt">GPS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <!-- NEW JOB (push from Firebase) -->
+    <div id="new-job-wrap" style="display:none">
+      <div class="new-job" id="new-job-card">
+        <div class="nj-head">
+          <div style="font-size:15px">📋</div>
+          <div class="nj-badge">งานใหม่เข้ามา</div>
+          <div class="nj-time" id="nj-time">--:--</div>
+        </div>
+        <div class="nj-body">
+          <div class="nj-dest" id="nj-dest">-</div>
+          <div class="nj-sub" id="nj-sub">-</div>
+          <div class="nj-meta">
+            <div class="nj-m"><div class="nj-ml">ปริมาณน้ำ</div><div class="nj-mv" id="nj-water">-</div></div>
+            <div class="nj-m"><div class="nj-ml">ผู้รอรับ</div><div class="nj-mv" id="nj-queue">-</div></div>
+            <div class="nj-m"><div class="nj-ml">ห่างจากคุณ</div><div class="nj-mv" id="nj-dist">-</div></div>
+          </div>
+          <!-- nearest recommendation -->
+          <div class="nearest-row" id="nearest-row" style="display:none">
+            <div style="font-size:16px" id="nearest-icon">⭐</div>
+            <div style="flex:1">
+              <div class="nearest-txt" id="nearest-txt">แนะนำรถที่ใกล้ที่สุด</div>
+              <div class="nearest-val" id="nearest-val">-</div>
+            </div>
+            <div style="font-size:11px;color:var(--text3)" id="nearest-km">-</div>
+          </div>
+          <div class="nj-btns">
+            <button class="btn-no" onclick="declineJob()">❌ ไม่รับ</button>
+            <button class="btn-yes" onclick="acceptJob()">✅ รับงาน</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div id="map-section" style="display:none;flex-direction:column;gap:9px">
+      <div class="map-wrap"><div id="leaflet-map"></div></div>
+      <div class="route-bar">
+        <div style="font-size:18px">🗺️</div>
+        <div style="flex:1"><div class="rlabel">ระยะทาง</div><div class="rval" id="route-dist">--</div></div>
+        <div class="rdivider"></div>
+        <div style="text-align:center;min-width:58px"><div class="rlabel">เวลาโดยประมาณ</div><div class="rval" id="route-time">--</div></div>
+      </div>
+      <button class="btn-maps" onclick="openExternalMap()">🗺️ เปิดใน Google Maps / Apple Maps</button>
+    </div>
+
+    <!-- ACTIVE JOB -->
+    <div class="active-job" id="active-wrap" style="display:none">
+      <div class="aj-head">
+        <div class="aj-label">กำลังปฏิบัติงาน</div>
+        <div class="aj-trip" id="aj-trip">เที่ยวที่ 1</div>
+      </div>
+      <div class="aj-body" style="padding-bottom:20px">
+        <div class="aj-dest" id="aj-dest">-</div>
+        <div class="aj-sub" id="aj-sub">-</div>
+        <button class="btn-done" onclick="doneJob()" style="margin-top:12px;font-size:20px;padding:22px;border-radius:16px;letter-spacing:.02em">
+          ✅ ส่งน้ำเสร็จแล้ว
+        </button>
+        <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">กดปุ่มเมื่อส่งน้ำครบแล้ว</div>
+      </div>
+    </div>
+
+    <!-- READY -->
+    <div class="ready-card" id="ready-wrap">
+      <div class="ready-icon">🟢</div>
+      <div class="ready-h">พร้อมรับงาน</div>
+      <div class="ready-sub" id="ready-sub">รอรับงานจากศูนย์ควบคุม<br><span style="color:var(--orange);font-size:12px">🔥 Firebase พร้อม — งานใหม่จะแจ้งทันที</span></div>
+    </div>
+
+    <!-- FIREBASE STATUS -->
+    <div class="fb-bar">
+      <div class="fb-icon">🔥</div>
+      <div class="fb-txt" id="fb-status-txt">Firebase Realtime DB · กำลังเชื่อมต่อ...</div>
+      <span class="fb-badge fb-badge-off" id="fb-badge">กำลังเชื่อม</span>
+    </div>
+
+    <!-- GPS -->
+    <div class="gps-card" id="gps-card">
+      <div style="font-size:18px">📡</div>
+      <div style="flex:1;min-width:0">
+        <div class="gcoord" id="gcoord">กำลังรับสัญญาณ...</div>
+        <div class="gnext" id="gnext">GPS ส่งทุก 5 นาที</div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="hist-card">
+      <div class="hist-head"><div class="hist-title">ประวัติวันนี้</div><div class="hist-ct" id="h-count">0 รายการ</div></div>
+      <div id="h-list"><div style="padding:14px;text-align:center;font-size:13px;color:var(--text3)">ยังไม่มีประวัติ</div></div>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <button class="nbtn on" onclick="goTab('main')"><div class="nicon">🏠</div><div>หน้าหลัก</div></button>
+    <button class="nbtn" onclick="goTab('jobs')"><div class="nicon">📋<span class="nbadge" id="nb-badge">!</span></div><div>งาน</div></button>
+    <button class="nbtn" onclick="goTab('map')"><div class="nicon">🗺️</div><div>แผนที่</div></button>
+  </div>
+</div>
+
+<!-- ══════ JOBS ══════ -->
+<div class="scr off" id="s-jobs">
+  <div class="topbar">
+    <div class="tb-row"><div class="tb-name">รายการงาน</div><button onclick="goTab('main')" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">✕</button></div>
+    <div class="tb-sub" id="jobs-sub">ดึงจาก Firebase</div>
+  </div>
+  <div class="scroll"><div id="jobs-list"><div style="text-align:center;padding:28px;font-size:13px;color:var(--text3)">ยังไม่มีงาน</div></div></div>
+  <div class="bnav">
+    <button class="nbtn" onclick="goTab('main')"><div class="nicon">🏠</div><div>หน้าหลัก</div></button>
+    <button class="nbtn on" onclick="goTab('jobs')"><div class="nicon">📋</div><div>งาน</div></button>
+    <button class="nbtn" onclick="goTab('map')"><div class="nicon">🗺️</div><div>แผนที่</div></button>
+  </div>
+</div>
+
+<!-- ══════ MAP FULL ══════ -->
+<div class="scr off" id="s-map">
+  <div class="topbar">
+    <div class="tb-row">
+      <div><div class="tb-name">แผนที่เส้นทาง</div><div class="tb-sub" id="map-scr-sub">-</div></div>
+      <button onclick="goTab('main')" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">✕</button>
+    </div>
+  </div>
+  <div style="flex:1;position:relative">
+    <div id="leaflet-map-full" style="height:100%;width:100%"></div>
+    <div style="position:absolute;bottom:14px;left:14px;right:14px;z-index:1000;display:flex;flex-direction:column;gap:8px">
+      <div class="route-bar" style="background:rgba(11,21,32,.93);backdrop-filter:blur(8px)">
+        <div style="font-size:17px">📍</div>
+        <div style="flex:1"><div class="rlabel">ปลายทาง</div><div class="rval" id="dest-full-label">-</div></div>
+        <div class="rdivider"></div>
+        <div style="text-align:center;min-width:52px"><div class="rlabel">ระยะทาง</div><div class="rval" id="route-dist-full">--</div></div>
+        <div class="rdivider"></div>
+        <div style="text-align:center;min-width:46px"><div class="rlabel">เวลา</div><div class="rval" id="route-time-full">--</div></div>
+      </div>
+      <button class="btn-maps" onclick="openExternalMap()" style="background:rgba(11,21,32,.93);backdrop-filter:blur(8px)">🗺️ เปิดใน Google Maps / Apple Maps</button>
+    </div>
+  </div>
+  <div class="bnav">
+    <button class="nbtn" onclick="goTab('main')"><div class="nicon">🏠</div><div>หน้าหลัก</div></button>
+    <button class="nbtn" onclick="goTab('jobs')"><div class="nicon">📋</div><div>งาน</div></button>
+    <button class="nbtn on" onclick="goTab('map')"><div class="nicon">🗺️</div><div>แผนที่</div></button>
+  </div>
+</div>
+
+<!-- DECLINE SHEET -->
+<div class="sheet-bg" id="decline-bg">
+  <div class="sheet">
+    <div class="sheet-title">เหตุผลที่ไม่รับงาน</div>
+    <button class="sopt" onclick="confirmDecline('รถน้ำยังเต็มไม่ได้')">🚚&nbsp; รถน้ำยังเต็มไม่ได้</button>
+    <button class="sopt" onclick="confirmDecline('อยู่ระหว่างส่งน้ำ')">💧&nbsp; อยู่ระหว่างส่งน้ำ</button>
+    <button class="sopt" onclick="confirmDecline('รถมีปัญหา')">🔧&nbsp; รถมีปัญหา</button>
+    <button class="sopt" onclick="confirmDecline('ระยะทางไกลเกิน')">📍&nbsp; ระยะทางไกลเกิน</button>
+    <button class="scancel" onclick="closeSheet()">ยกเลิก</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── FIREBASE CONFIG ───
+let FB_URL = 'https://bcp-water-truck-default-rtdb.asia-southeast1.firebasedatabase.app';
+let FB_KEY = 'AIzaSyAmgn8yCgD8rc5E5_C8Ca2z37us4GJ634';
+let AS_URL = 'https://script.google.com/macros/s/AKfycbyvvC-LNQ0s8dL0dkyxAxvwiFBcIXCFcEXofl-u8DA8yUy6f9TzakQOXZ54Ox5JuvSv/exec';
+
+// ─── STATE ───
+let truck='', driver='';
+let coords=null, gpsCountdown=300, gpsTimer=null;
+let jobActive=false, tripCount=0, waterTotal=0;
+let currentJob=null, pendingJob=null;
+let allJobs={}, allTrucks={};
+let HISTORY=[];
+let fbEventSource=null;
+let mapInited=false;
+let leafletMap=null, leafletMapFull=null;
+let myMarker=null, destMarker=null, routeLayer=null;
+let myMarkerFull=null, destMarkerFull=null, routeLayerFull=null;
+let knownJobIds=new Set();
+
+// ─── SETUP ───
+function startApp(){
+  truck  = document.getElementById('i-truck').value.trim();
+  driver = document.getElementById('i-name').value.trim();
+  if(!truck||!driver){toast('กรุณากรอกหมายเลขรถและชื่อ');return;}
+  document.getElementById('d-name').textContent=driver;
+  document.getElementById('d-truck').textContent=truck;
+  show('s-loading'); hide('s-setup');
+  initMaps();
+  startGPS();
+  connectFirebase();
+}
+
+// ─── FIREBASE REALTIME (Server-Sent Events / REST Streaming) ───
+function connectFirebase(){
+  setLoadStep('fb','active');
+
+  // 1. Load current jobs for this truck
+  fetchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`)
+    .then(data=>{
+      setLoadStep('fb','done');
+      setLoadStep('jobs','active');
+      if(data){
+        let pendingOnLoad = null;
+        Object.entries(data).forEach(([k,v])=>{
+          allJobs[k]=v;
+          knownJobIds.add(k);
+          // ถ้ากำลังส่งอยู่แล้ว → restore active job
+          if(v.status==='กำลังส่ง'&&!jobActive){
+            currentJob={...v, jobId:k};
+            jobActive=true; tripCount++;
+            setActiveJobUI(currentJob);
+            showEl('active-wrap'); hideEl('ready-wrap');
+            updateMap();
+          }
+          // ถ้ายัง รอรับ → เก็บไว้แสดง notification
+          if((v.status==='รอรับ'||!v.status) && !jobActive){
+            pendingOnLoad = {...v, jobId:k};
+          }
+        });
+        renderJobs();
+        // แสดง notification งานที่รอรับ (มีอยู่แล้วตอนเปิดแอป)
+        if(pendingOnLoad && !jobActive){
+          const nearest=findNearest(pendingOnLoad, allTrucks);
+          showNewJobNotification(pendingOnLoad, nearest);
+        }
+      }
+      setLoadStep('jobs','done');
+      setTimeout(()=>{ hide('s-loading'); show('s-main'); },400);
+      setFBStatus(true);
+    })
+    .catch(err=>{
+      setLoadStep('fb','done');
+      setFBStatus(false, err.message);
+      hide('s-loading'); show('s-main');
+      demoFallback();
+    });
+
+  // 2. Stream new jobs via SSE
+  streamFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`, onJobsChange);
+
+  // 3. Stream all trucks GPS (for nearest recommendation)
+  streamFirebase('/trucks', onTrucksChange);
+}
+
+function fetchFirebase(path){
+  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`)
+    .then(r=>{ if(!r.ok) throw new Error('Firebase '+r.status); return r.json(); });
+}
+
+function writeFirebase(path, data){
+  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`,{
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  });
+}
+
+function patchFirebase(path, data){
+  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`,{
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  });
+}
+
+// Firebase SSE streaming
+function streamFirebase(path, callback){
+  try{
+    const url=`${FB_URL}${path}.json?auth=${FB_KEY}&orderBy="$key"`;
+    const es=new EventSource(url);
+    es.onmessage=e=>{
+      try{ const d=JSON.parse(e.data); if(d&&d.data) callback(d.path, d.data); }catch(ex){}
+    };
+    es.onerror=()=>{ es.close(); setTimeout(()=>streamFirebase(path,callback),5000); };
+    return es;
+  }catch(e){}
+}
+
+function onJobsChange(path, data){
+  if(typeof data!=='object') return;
+  Object.entries(data).forEach(([k,v])=>{
+    if(!v) return;
+    const isNew=!knownJobIds.has(k);
+    knownJobIds.add(k);
+    allJobs[k]=v;
+    // ถ้างานที่กำลังส่งอยู่ถูก update status จาก Firebase → sync กลับ
+    if(currentJob && currentJob.jobId===k) currentJob={...currentJob,...v};
+    // New job assigned to this truck that's pending
+    if(isNew && (v.status==='รอรับ'||!v.status) && !jobActive){
+      const job={...v,jobId:k};
+      const nearest=findNearest(job,allTrucks);
+      showNewJobNotification(job, nearest);
+    }
+  });
+  renderJobs();
+  // คืน UI active-wrap ถ้า jobActive ยังเป็น true
+  if(jobActive){
+    showEl('active-wrap'); hideEl('ready-wrap');
+  }
+  document.getElementById('jobs-sub').textContent=`${Object.keys(allJobs).length} งานของ ${truck}`;
+}
+
+function onTrucksChange(path, data){
+  if(typeof data==='object') Object.assign(allTrucks, data);
+}
+
+// ─── NEAREST TRUCK ───
+function haverDist(lat1,lng1,lat2,lng2){
+  const R=6371,d2r=Math.PI/180;
+  const dLat=(lat2-lat1)*d2r, dLng=(lng2-lng1)*d2r;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function findNearest(job, trucks){
+  if(!job.lat||!job.lng||!trucks) return null;
+  const destLat=parseFloat(job.lat), destLng=parseFloat(job.lng);
+  let nearest=null, minD=Infinity;
+  Object.entries(trucks).forEach(([tid,t])=>{
+    if(!t.lat||!t.lng) return;
+    const busy=Object.values(allJobs).some(j=>j.truckId===tid&&j.status==='กำลังส่ง');
+    if(busy) return;
+    const d=haverDist(parseFloat(t.lat),parseFloat(t.lng),destLat,destLng);
+    if(d<minD){minD=d; nearest={truckId:tid,...t,dist:d};}
+  });
+  return nearest;
+}
+
+// ─── SHOW NEW JOB ───
+function showNewJobNotification(job, nearest){
+  pendingJob=job;
+  showEl('new-job-wrap');
+  document.getElementById('nj-time').textContent=now()+' น.';
+  document.getElementById('nj-dest').textContent=job.dest||'-';
+  document.getElementById('nj-sub').textContent=job.sub||'-';
+  document.getElementById('nj-water').textContent=job.water||'-';
+  document.getElementById('nj-queue').textContent=job.queue||'-';
+  if(coords&&job.lat&&job.lng){
+    const d=haverDist(coords.lat,coords.lng,parseFloat(job.lat),parseFloat(job.lng));
+    document.getElementById('nj-dist').textContent=d.toFixed(1)+' กม.';
+  } else document.getElementById('nj-dist').textContent='-';
+
+  if(nearest){
+    const isMe=nearest.truckId===truck;
+    const row=document.getElementById('nearest-row');
+    row.style.display='flex';
+    row.className='nearest-row'+(isMe?' nearest-me':'');
+    document.getElementById('nearest-icon').textContent=isMe?'⭐':'🚚';
+    document.getElementById('nearest-txt').textContent=isMe?'คุณคือรถที่ใกล้ที่สุด!':'แนะนำรถที่ใกล้ที่สุด';
+    document.getElementById('nearest-val').textContent=nearest.truckId+(isMe?' (รับงานนี้เลย!)':'');
+    document.getElementById('nearest-km').textContent=nearest.dist.toFixed(1)+' กม.';
+    if(isMe) toast('⭐ คุณอยู่ใกล้ที่สุด! รับงานนี้เลย');
+  } else document.getElementById('nearest-row').style.display='none';
+
+  document.getElementById('nb-badge').style.display='inline';
+  if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
+  document.getElementById('new-job-card').classList.add('shake');
+  setTimeout(()=>document.getElementById('new-job-card').classList.remove('shake'),700);
+}
+
+// ─── ACCEPT ───
+function acceptJob(){
+  if(!pendingJob) return;
+  hideEl('new-job-wrap');
+  document.getElementById('nb-badge').style.display='none';
+  currentJob=pendingJob; pendingJob=null;
+  jobActive=true; tripCount++;
+  setActiveJobUI(currentJob);
+  showEl('active-wrap'); hideEl('ready-wrap');
+  HISTORY.push({t:now(),txt:currentJob.dest+' — รับงานแล้ว',ok:false});
+  renderHistory(); updateMap();
+  // Update Firebase status
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{status:'กำลังส่ง',acceptedAt:now(),driver});
+  // Update truck status in Firebase
+  if(coords) patchFirebase(`/trucks/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`,{status:'กำลังส่ง',lat:coords.lat,lng:coords.lng,dest:currentJob.dest});
+  // Notify Apps Script → Sheets
+  post('job_accept',{jobId:currentJob.jobId,dest:currentJob.dest,rowIndex:currentJob.rowIndex,status:'กำลังส่ง'});
+  postViaGet('job_accept',{jobId:currentJob.jobId,dest:currentJob.dest,status:'กำลังส่ง'});
+  toast('✅ รับงานแล้ว — เส้นทางพร้อมแล้ว');
+  if(navigator.vibrate) navigator.vibrate(120);
+}
+
+// ─── DECLINE ───
+function declineJob(){document.getElementById('decline-bg').classList.add('open');}
+function closeSheet(){document.getElementById('decline-bg').classList.remove('open');}
+function confirmDecline(reason){
+  closeSheet();
+  const job=pendingJob; pendingJob=null;
+  hideEl('new-job-wrap');
+  document.getElementById('nb-badge').style.display='none';
+  if(job){
+    patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${job.jobId}`,{status:'ปฏิเสธ',reason,declinedAt:now()});
+    post('job_decline',{jobId:job.jobId,dest:job.dest,reason,rowIndex:job.rowIndex});
+  }
+  toast('ปฏิเสธ: '+reason);
+}
+
+// ─── DONE ───
+function doneJob(){
+  if(!currentJob) return;
+  const dest=currentJob.dest;
+  HISTORY.push({t:now(),txt:dest+' — ส่งน้ำเสร็จ',ok:true});
+  waterTotal+=15;
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{status:'เสร็จแล้ว',doneAt:now(),trip:tripCount});
+  if(coords) patchFirebase(`/trucks/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`,{status:'พร้อม',lat:coords.lat,lng:coords.lng,dest:''});
+  post('trip_done',{jobId:currentJob.jobId,dest,trip:tripCount,water:waterTotal,rowIndex:currentJob.rowIndex,status:'เสร็จแล้ว'});
+  postViaGet('trip_done',{jobId:currentJob.jobId,dest,trip:tripCount,status:'เสร็จแล้ว'});
+  currentJob=null; jobActive=false;
+  hideEl('active-wrap'); showEl('ready-wrap');
+  hideEl('map-section');
+  [routeLayer,routeLayerFull,destMarker,destMarkerFull].forEach(l=>{try{if(l)l.remove();}catch(e){}});
+  renderHistory();
+  renderJobs();
+  toast('✅ บันทึกเที่ยวที่ '+tripCount+' แล้ว');
+  if(navigator.vibrate) navigator.vibrate(150);
+}
+
+// ─── MAP ───
+const myIcon=()=>L.divIcon({className:'',html:`<div style="width:36px;height:36px;border-radius:50%;background:#10b981;border:3px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.5)">🚚</div>`,iconSize:[36,36],iconAnchor:[18,18]});
+const destIcon=()=>L.divIcon({className:'',html:`<div style="display:flex;flex-direction:column;align-items:center"><div style="width:36px;height:36px;border-radius:50%;background:#f59e0b;border:3px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.5)">💧</div><div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid #f59e0b;margin-top:-2px"></div></div>`,iconSize:[36,46],iconAnchor:[18,46]});
+
+function initMaps(){
+  if(mapInited) return; mapInited=true;
+  const tile=()=>L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'',crossOrigin:true});
+  leafletMap=L.map('leaflet-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false});
+  tile().addTo(leafletMap); leafletMap.setView([13.752,100.500],13);
+  leafletMapFull=L.map('leaflet-map-full',{zoomControl:true,attributionControl:false});
+  tile().addTo(leafletMapFull); leafletMapFull.setView([13.752,100.500],13);
+  setTimeout(()=>{leafletMap.invalidateSize();leafletMapFull.invalidateSize();},200);
+}
+
+function updateMap(){
+  if(!leafletMap||!currentJob) return;
+  const dLat=parseFloat(currentJob.lat)||13.758, dLng=parseFloat(currentJob.lng)||100.503;
+  const dName=currentJob.dest||'-';
+  const myPos=coords?[coords.lat,coords.lng]:[13.752,100.500];
+  const dPos=[dLat,dLng];
+  [myMarker,destMarker,routeLayer].forEach(l=>{try{if(l)leafletMap.removeLayer(l);}catch(e){}});
+  [myMarkerFull,destMarkerFull,routeLayerFull].forEach(l=>{try{if(l)leafletMapFull.removeLayer(l);}catch(e){}});
+  myMarker=L.marker(myPos,{icon:myIcon()}).addTo(leafletMap);
+  destMarker=L.marker(dPos,{icon:destIcon()}).addTo(leafletMap).bindTooltip(dName,{permanent:true,direction:'top',offset:[0,-46],className:'lf-tip'});
+  myMarkerFull=L.marker(myPos,{icon:myIcon()}).addTo(leafletMapFull).bindPopup(`<b>${driver}</b><br>${truck}`);
+  destMarkerFull=L.marker(dPos,{icon:destIcon()}).addTo(leafletMapFull).bindPopup(`<b>${dName}</b>`).openPopup();
+  document.getElementById('dest-full-label').textContent=dName;
+  document.getElementById('map-scr-sub').textContent=dName;
+  const bounds=L.latLngBounds([myPos,dPos]).pad(.2);
+  leafletMap.fitBounds(bounds); leafletMapFull.fitBounds(bounds);
+  fetch(`https://router.project-osrm.org/route/v1/driving/${myPos[1]},${myPos[0]};${dLng},${dLat}?overview=full&geometries=geojson`)
+    .then(r=>r.json()).then(data=>{
+      if(data.code!=='Ok') return drawStraight(myPos,dPos);
+      const r=data.routes[0];
+      const dist=(r.distance/1000).toFixed(1)+' กม.';
+      const mins=Math.ceil(r.duration/60);
+      const time=mins>=60?`${Math.floor(mins/60)} ชม. ${mins%60} นาที`:`${mins} นาที`;
+      [leafletMap,leafletMapFull].forEach((m,i)=>{
+        const l=L.geoJSON(r.geometry,{style:{color:'#38bdf8',weight:4,opacity:.85,dashArray:'8 4'}}).addTo(m);
+        if(i===0) routeLayer=l; else routeLayerFull=l;
+      });
+      ['route-dist','route-dist-full'].forEach(id=>document.getElementById(id).textContent=dist);
+      ['route-time','route-time-full'].forEach(id=>document.getElementById(id).textContent=time);
+    }).catch(()=>drawStraight(myPos,dPos));
+  document.getElementById('map-section').style.display='flex';
+}
+
+function drawStraight(o,d){
+  [leafletMap,leafletMapFull].forEach((m,i)=>{
+    const l=L.polyline([o,d],{color:'#38bdf8',weight:3,opacity:.7,dashArray:'10 6'}).addTo(m);
+    if(i===0) routeLayer=l; else routeLayerFull=l;
+  });
+}
+
+function openExternalMap(){
+  if(!currentJob) return;
+  const lat=parseFloat(currentJob.lat)||13.758, lng=parseFloat(currentJob.lng)||100.503;
+  const name=currentJob.dest||'จุดส่งน้ำ';
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent)){
+    window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(name)}&dirflg=d`,'_blank');
+  } else {
+    const o=coords?`${coords.lat},${coords.lng}`:'';
+    window.open(`https://www.google.com/maps/dir/${o}/${lat},${lng}`,'_blank');
+  }
+}
+
+// ─── GPS ───
+function startGPS(){
+  setLoadStep('gps','active');
+  if(!navigator.geolocation){setLoadStep('gps','done');setGPSOff('ไม่รองรับ GPS');return;}
+  navigator.geolocation.getCurrentPosition(p=>{onGPSOK(p); setLoadStep('gps','done');},()=>{setLoadStep('gps','done');setGPSOff('รับสัญญาณไม่ได้');},{enableHighAccuracy:true,timeout:15000});
+  if(gpsTimer) clearInterval(gpsTimer);
+  gpsTimer=setInterval(()=>{
+    gpsCountdown--;
+    const m=Math.floor(gpsCountdown/60),s=String(gpsCountdown%60).padStart(2,'0');
+    document.getElementById('gnext').textContent=`GPS ส่งใน ${m}:${s}`;
+    if(gpsCountdown<=0){
+      gpsCountdown=300;
+      navigator.geolocation?.getCurrentPosition(onGPSOK,()=>{},{enableHighAccuracy:true,timeout:15000});
+    }
+  },1000);
+}
+
+function onGPSOK(p){
+  coords={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};
+  document.getElementById('gdot').className='pdot pdot-gps';
+  document.getElementById('gtxt').className='ptxt ptxt-gps'; document.getElementById('gtxt').textContent='GPS';
+  document.getElementById('gps-pill').className='pill pill-gps';
+  document.getElementById('gps-card').className='gps-card';
+  document.getElementById('gcoord').className='gcoord';
+  document.getElementById('gcoord').textContent=`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+  gpsCountdown=300;
+  if(jobActive&&currentJob) updateMap();
+  // Write GPS to Firebase (other trucks can see this for nearest calc)
+  if(FB_URL) patchFirebase(`/trucks/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`,{truckId:truck,driver,lat:coords.lat,lng:coords.lng,acc:coords.acc,status:jobActive?'กำลังส่ง':'พร้อม',ts:Date.now()});
+  post('gps',{lat:coords.lat,lng:coords.lng,accuracy:coords.acc,status:jobActive?'กำลังส่ง':'พร้อม'});
+}
+function setGPSOff(txt){
+  document.getElementById('gdot').className='pdot pdot-off';
+  document.getElementById('gtxt').className='ptxt ptxt-off'; document.getElementById('gtxt').textContent='GPS Off';
+  document.getElementById('gps-pill').className='pill pill-off';
+  document.getElementById('gps-card').className='gps-card off';
+  document.getElementById('gcoord').className='gcoord off'; document.getElementById('gcoord').textContent=txt;
+}
+
+function setFBStatus(ok, err){
+  const badge=document.getElementById('fb-badge');
+  const txt=document.getElementById('fb-status-txt');
+  const dot=document.getElementById('fb-dot');
+  const pill=document.getElementById('fb-pill');
+  if(ok){
+    badge.className='fb-badge fb-badge-live'; badge.textContent='🔥 Live';
+    txt.textContent=`Firebase Realtime DB · รับ push ทันที · ${truck}`;
+    dot.className='pdot pdot-live'; pill.className='pill pill-live';
+  } else {
+    badge.className='fb-badge fb-badge-off'; badge.textContent='✗ Error';
+    txt.textContent='Firebase: '+(err||'เชื่อมต่อไม่ได้');
+    dot.className='pdot pdot-off'; pill.className='pill pill-off';
+  }
+}
+
+// ─── LOADING STEPS ───
+function setLoadStep(id, state){
+  const el=document.getElementById('lstep-'+id);
+  if(!el) return;
+  el.className='lstep '+(state==='done'?'done':state==='active'?'active':'');
+  el.querySelector('.lstep-dot').className='lstep-dot';
+}
+
+// ─── RENDER ───
+function setActiveJobUI(j){
+  document.getElementById('aj-dest').textContent=j.dest||'-';
+  document.getElementById('aj-sub').textContent=j.sub||'-';
+  document.getElementById('aj-trip').textContent='เที่ยวที่ '+tripCount;
+}
+
+function renderHistory(){
+  const items=HISTORY.slice(-6).reverse();
+  document.getElementById('h-count').textContent=HISTORY.length+' รายการ';
+  document.getElementById('h-list').innerHTML=items.length?items.map(h=>`
+    <div class="hist-item">
+      <div class="hd" style="background:${h.ok?'var(--green)':'var(--blue)'}"></div>
+      <div class="ht">${h.t}</div>
+      <div class="hx">${h.txt}</div>
+    </div>`).join(''):'<div style="padding:14px;text-align:center;font-size:13px;color:var(--text3)">ยังไม่มีประวัติ</div>';
+}
+
+function renderJobs(){
+  const jobs=Object.entries(allJobs);
+  if(!jobs.length){document.getElementById('jobs-list').innerHTML='<div style="text-align:center;padding:28px;font-size:13px;color:var(--text3)">ยังไม่มีงาน</div>';return;}
+  const clsMap={'รอรับ':'ta','กำลังส่ง':'tb','เสร็จแล้ว':'tg','ปฏิเสธ':'tr'};
+  document.getElementById('jobs-list').innerHTML=jobs.map(([k,j])=>{
+    const isPending=(j.status==='รอรับ'||!j.status)&&!jobActive;
+    const isActive=j.status==='กำลังส่ง';
+    const isDone=j.status==='เสร็จแล้ว'||j.status==='ปฏิเสธ';
+    const dist=j.lat&&j.lng&&coords?haverDist(coords.lat,coords.lng,parseFloat(j.lat),parseFloat(j.lng)).toFixed(1)+' กม.':'';
+    return `<div class="jcard" style="${isPending?'border-color:var(--abdr);':''}${isActive?'border-color:var(--bbdr);':''}${isDone?'opacity:0.7;':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div class="jcard-dest">${j.dest||'-'}</div>
+          <div class="jcard-sub">${j.sub||'-'}</div>
+        </div>
+        <span class="tag ${clsMap[j.status||'รอรับ']||'ta'}">${j.status||'รอรับ'}</span>
+      </div>
+      <div class="jcard-meta" style="margin-bottom:${isPending||isDone?'10px':'0'}">
+        <div>💧 ${j.water||'-'}</div>
+        ${dist?`<div>📍 ${dist}</div>`:''}
+        <div>👥 ${j.queue||'-'}</div>
+      </div>
+      ${isPending?`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px">
+        <button onclick="acceptJobById('${k}')"
+          style="padding:12px;border-radius:11px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer">
+          ✅ รับงาน
+        </button>
+        <button onclick="declineJobById('${k}')"
+          style="padding:12px;border-radius:11px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:15px;font-weight:500;font-family:inherit;cursor:pointer">
+          ❌ ไม่รับ
+        </button>
+      </div>`:''}
+      ${isActive?`
+      <button onclick="doneJob()"
+        style="width:100%;padding:12px;border-radius:11px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:2px">
+        ✅ ส่งน้ำเสร็จแล้ว
+      </button>`:''}
+      ${isDone&&!jobActive?`
+      <button onclick="reopenJob('${k}')"
+        style="width:100%;padding:10px;border-radius:11px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;margin-top:2px">
+        ✏️ แก้ไขสถานะ
+      </button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function reopenJob(jobId){
+  const j=allJobs[jobId];
+  if(!j) return;
+  // reset สถานะกลับเป็น รอรับ ใน Firebase
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${jobId}`,{status:'รอรับ'});
+  allJobs[jobId]={...j, status:'รอรับ'};
+  // แสดง notification รับ/ไม่รับ
+  pendingJob={...j, jobId, status:'รอรับ'};
+  showNewJobNotification(pendingJob, null);
+  renderJobs();
+  goTab('main');
+  toast('✏️ เปิดให้เลือกรับ/ไม่รับอีกครั้ง');
+}
+
+function acceptJobById(jobId){
+  const j=allJobs[jobId];
+  if(!j) return;
+  pendingJob={...j, jobId};
+  acceptJob();
+  renderJobs(); // refresh buttons in jobs list
+  goTab('main');
+}
+
+function declineJobById(jobId){
+  const j=allJobs[jobId];
+  if(!j) return;
+  pendingJob={...j, jobId};
+  declineJob();
+}
+
+// ─── DEMO FALLBACK ───
+function demoFallback(){
+  setTimeout(()=>{
+    const job={dest:'บางอุเทน เขต 4 (Demo)',sub:'จุดที่ 12 · DMA-09',water:'15 ลบ.ม.',queue:'48 คน',lat:13.758,lng:100.503,jobId:'DEMO-001',rowIndex:2};
+    const nearest={truckId:truck,lat:coords?.lat||13.752,lng:coords?.lng||100.500,dist:1.2};
+    knownJobIds.add('DEMO-001');
+    allJobs['DEMO-001']={...job,status:'รอรับ'};
+    showNewJobNotification(job,nearest);
+    renderJobs();
+  },1500);
+}
+
+// ─── TAB NAV ───
+function goTab(tab){
+  ['main','jobs','map'].forEach(t=>document.getElementById('s-'+t).classList[t===tab?'remove':'add']('off'));
+  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll(`[onclick="goTab('${tab}')"]`).forEach(b=>b.classList.add('on'));
+  if(tab==='map') setTimeout(()=>leafletMapFull?.invalidateSize(),100);
+  if(tab==='jobs') document.getElementById('nb-badge').style.display='none';
+}
+
+// ─── POST to Apps Script ───
+function post(type,form){
+  if(!AS_URL) return;
+  const payload={type,form:{...form,truck,driver,timestamp:now()}};
+  // ใช้ no-cors เพื่อ bypass CORS จาก local file / mobile
+  fetch(AS_URL,{
+    method:'POST',
+    mode:'no-cors',
+    headers:{'Content-Type':'text/plain'}, // no-cors ต้องใช้ text/plain
+    body:JSON.stringify(payload)
+  }).then(()=>console.log('POST sent:',type))
+    .catch(e=>console.error('POST error:',e));
+}
+// fallback via GET (ส่งข้อมูลผ่าน URL params)
+function postViaGet(type,form){
+  if(!AS_URL) return;
+  const p=new URLSearchParams({type,truck,driver,...form,timestamp:now()});
+  fetch(`${AS_URL}?${p.toString()}`).catch(()=>{});
+}
+
+// ─── HELPERS ───
+function show(id){document.getElementById(id).classList.remove('off');}
+function hide(id){document.getElementById(id).classList.add('off');}
+function showEl(id){document.getElementById(id).style.display='block';}
+function hideEl(id){document.getElementById(id).style.display='none';}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),2600);
+}
+function now(){return new Date().toTimeString().slice(0,5);}
+</script>
+</body>
+</html>
