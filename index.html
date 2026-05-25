@@ -187,6 +187,18 @@ input:focus{outline:none;border-color:var(--blue)}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .shake{animation:shake .3s ease 2}
+
+/* TRUCK SPINNER */
+.truck-spinner-wrap{position:relative}
+.truck-spinner{width:100%;padding:13px 15px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:16px;font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:36px}
+.truck-spinner:focus{outline:none;border-color:var(--blue)}
+.truck-spinner-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text2);font-size:14px}
+.truck-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:6px;display:none}
+.truck-card.show{display:block}
+.truck-card-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0}
+.truck-card-label{font-size:11px;color:var(--text3)}
+.truck-card-val{font-size:13px;color:var(--text);font-weight:500}
+.spinner-loading{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);padding:10px 0}
 </style>
 </head>
 <body>
@@ -195,13 +207,79 @@ input:focus{outline:none;border-color:var(--blue)}
 <div class="scr" id="s-setup">
   <div class="setup-body" style="justify-content:center">
     <div><div class="logo">🚚</div><div class="setup-h" style="margin-top:8px">Driver App<br>รถน้ำ BCP</div></div>
-    <div style="display:flex;flex-direction:column;gap:13px">
-      <div><label>หมายเลขรถน้ำ *</label><input id="i-truck" type="text" placeholder="เช่น WT-01-015" autocomplete="off"/></div>
-      <div><label>ชื่อคนขับ *</label><input id="i-name" type="text" placeholder="ชื่อ-นามสกุล" autocomplete="off"/></div>
+
+    <!-- SAVED PROFILE — แสดงเมื่อมีข้อมูลบันทึกไว้แล้ว -->
+    <div id="saved-profile" style="display:none">
+      <div style="background:var(--gbg);border:1px solid var(--gbdr);border-radius:14px;padding:16px">
+        <div style="font-size:11px;color:var(--green);margin-bottom:8px;font-weight:600">✅ ข้อมูลที่บันทึกไว้</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-size:36px">🚚</div>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--text)" id="saved-truck-id">WT-01-015</div>
+            <div style="font-size:14px;color:var(--text2)" id="saved-driver-name">สมชาย จ.</div>
+            <div style="font-size:12px;color:var(--text3)" id="saved-branch">สาขา 01</div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="startWithSaved()" style="margin-bottom:8px">
+          ▶ เริ่มใช้งานทันที
+        </button>
+        <button onclick="clearSaved()"
+          style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer">
+          🔄 เปลี่ยนรถ / คนขับ
+        </button>
+      </div>
     </div>
-    <button class="btn-primary" onclick="startApp()">เริ่มใช้งาน →</button>
-    <div style="font-size:11px;color:var(--text3);text-align:center;line-height:1.7">
-      🔥 เชื่อมต่อ Firebase อัตโนมัติ<br>GPS ส่งทุก 5 นาที · กดแค่ 2 ปุ่ม
+
+    <!-- SELECT FORM — เลือกรถใหม่ -->
+    <div id="select-form-wrap" style="display:none;flex-direction:column;gap:4px">
+
+      <!-- โหลดรายการรถ -->
+      <div id="setup-loading" class="spinner-loading">
+        <div class="spinner" style="width:20px;height:20px;border-width:2px"></div>
+        <span>กำลังโหลดรายการรถ...</span>
+      </div>
+
+      <div id="setup-form" style="display:none;flex-direction:column;gap:13px">
+        <!-- เลือกรถ -->
+        <div>
+          <label>เลือกรถน้ำ *</label>
+          <div class="truck-spinner-wrap">
+            <select id="i-truck-select" class="truck-spinner" onchange="onTruckSelect()">
+              <option value="">-- เลือกรถน้ำ --</option>
+            </select>
+            <span class="truck-spinner-arrow">▼</span>
+          </div>
+          <!-- รายละเอียดรถ -->
+          <div class="truck-card" id="truck-detail-card">
+            <div class="truck-card-row"><span class="truck-card-label">คนขับประจำ</span><span class="truck-card-val" id="tc-driver">-</span></div>
+            <div class="truck-card-row"><span class="truck-card-label">สาขา</span><span class="truck-card-val" id="tc-branch">-</span></div>
+            <div class="truck-card-row"><span class="truck-card-label">เบอร์โทร</span><span class="truck-card-val" id="tc-phone">-</span></div>
+            <div class="truck-card-row"><span class="truck-card-label">ประเภทรถ</span><span class="truck-card-val" id="tc-type">-</span></div>
+          </div>
+        </div>
+        <!-- ชื่อคนขับ -->
+        <div>
+          <label>ชื่อคนขับ *</label>
+          <input id="i-name" type="text" placeholder="ชื่อ-นามสกุล" autocomplete="off"/>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">กรอกชื่อจริงของคุณ</div>
+        </div>
+        <button class="btn-primary" id="setup-btn" onclick="startApp()">เริ่มใช้งาน →</button>
+      </div>
+
+      <!-- ถ้าโหลดไม่ได้ -->
+      <div id="setup-manual" style="display:none;flex-direction:column;gap:13px">
+        <div style="font-size:12px;color:var(--amber);background:var(--abg);border:1px solid var(--abdr);border-radius:10px;padding:10px 12px">
+          ⚠️ โหลดรายการรถไม่ได้ — กรอกเองแทน
+        </div>
+        <div><label>หมายเลขรถน้ำ *</label><input id="i-truck-manual" type="text" placeholder="เช่น WT-01-015" autocomplete="off"/></div>
+        <div><label>ชื่อคนขับ *</label><input id="i-name-manual" type="text" placeholder="ชื่อ-นามสกุล" autocomplete="off"/></div>
+        <button class="btn-primary" onclick="startApp()">เริ่มใช้งาน →</button>
+      </div>
+
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);text-align:center;line-height:1.7;margin-top:4px">
+      🔥 Firebase · GPS ส่งทุก 5 นาที · กดแค่ 2 ปุ่ม
     </div>
   </div>
 </div>
@@ -291,12 +369,122 @@ input:focus{outline:none;border-color:var(--blue)}
         <div class="aj-trip" id="aj-trip">เที่ยวที่ 1</div>
       </div>
       <div class="aj-body" style="padding-bottom:20px">
+
+        <!-- ปลายทาง -->
         <div class="aj-dest" id="aj-dest">-</div>
-        <div class="aj-sub" id="aj-sub">-</div>
-        <button class="btn-done" onclick="doneJob()" style="margin-top:12px;font-size:20px;padding:22px;border-radius:16px;letter-spacing:.02em">
+        <div class="aj-sub" id="aj-sub" style="margin-bottom:12px">-</div>
+
+        <!-- รายละเอียดงาน -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
+          <!-- ปริมาณน้ำ / ผู้รอรับ -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ปริมาณน้ำ</div>
+              <div style="font-size:15px;font-weight:600;color:var(--text)" id="aj-water">-</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ผู้รอรับ</div>
+              <div style="font-size:15px;font-weight:600;color:var(--text)" id="aj-queue">-</div>
+            </div>
+          </div>
+          <!-- ชื่อลูกค้า -->
+          <div id="aj-customer-row" style="display:none">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ชื่อลูกค้า</div>
+            <div style="font-size:14px;color:var(--text)" id="aj-customer">-</div>
+          </div>
+          <!-- เบอร์ติดต่อ -->
+          <div id="aj-phone-row" style="display:none">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">เบอร์ติดต่อ</div>
+            <a id="aj-phone-link" href="tel:" style="display:flex;align-items:center;gap:8px;background:var(--gbg);border:1px solid var(--gbdr);border-radius:10px;padding:10px 14px;text-decoration:none">
+              <span style="font-size:18px">📞</span>
+              <span style="font-size:16px;font-weight:700;color:var(--green)" id="aj-phone-num">-</span>
+              <span style="font-size:12px;color:var(--text2);margin-left:auto">กดโทรทันที</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- ถ่ายรูปงาน -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">📷 รูปถ่ายงาน (สูงสุด 2 รูป)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <!-- รูปที่ 1 -->
+            <div>
+              <input type="file" id="photo1-input" accept="image/*" capture="environment"
+                style="display:none" onchange="previewPhoto(1,this)">
+              <div id="photo1-preview"
+                onclick="document.getElementById('photo1-input').click()"
+                style="height:110px;border-radius:10px;border:1.5px dashed var(--border2);background:var(--bg3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;overflow:hidden;position:relative">
+                <span style="font-size:28px">📸</span>
+                <span style="font-size:11px;color:var(--text3)">รูปที่ 1</span>
+              </div>
+              <div style="display:flex;gap:4px;margin-top:5px">
+                <button onclick="document.getElementById('photo1-input').click()"
+                  style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;font-family:inherit;cursor:pointer">
+                  📷 ถ่ายรูป
+                </button>
+                <button onclick="clearPhoto(1)"
+                  id="photo1-clear" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--rbdr);background:var(--rbg);color:var(--red);font-size:12px;font-family:inherit;cursor:pointer">
+                  ✕
+                </button>
+              </div>
+            </div>
+            <!-- รูปที่ 2 -->
+            <div>
+              <input type="file" id="photo2-input" accept="image/*" capture="environment"
+                style="display:none" onchange="previewPhoto(2,this)">
+              <div id="photo2-preview"
+                onclick="document.getElementById('photo2-input').click()"
+                style="height:110px;border-radius:10px;border:1.5px dashed var(--border2);background:var(--bg3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;overflow:hidden;position:relative">
+                <span style="font-size:28px">📸</span>
+                <span style="font-size:11px;color:var(--text3)">รูปที่ 2</span>
+              </div>
+              <div style="display:flex;gap:4px;margin-top:5px">
+                <button onclick="document.getElementById('photo2-input').click()"
+                  style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;font-family:inherit;cursor:pointer">
+                  📷 ถ่ายรูป
+                </button>
+                <button onclick="clearPhoto(2)"
+                  id="photo2-clear" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--rbdr);background:var(--rbg);color:var(--red);font-size:12px;font-family:inherit;cursor:pointer">
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- อัพโหลดรูปไป Google Drive -->
+          <button onclick="uploadPhotos()"
+            id="photo-upload-btn" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer">
+            ☁️ อัพโหลดรูปไป Google Drive
+          </button>
+          <div id="photo-status" style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px;display:none"></div>
+        </div>
+
+        <!-- หมายเหตุ -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:5px">📝 หมายเหตุ (จะบันทึกชื่อคุณนำหน้า)</div>
+          <textarea id="aj-note" rows="2"
+            placeholder="เช่น: บ้านปิดประตู ฝากน้ำไว้ที่ร้านสะดวกซื้อ..."
+            style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;font-family:inherit;resize:none;outline:none;line-height:1.5"></textarea>
+          <button onclick="saveNote()"
+            style="margin-top:6px;width:100%;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer">
+            💾 บันทึกหมายเหตุ
+          </button>
+        </div>
+
+        <!-- สถานะงาน -->
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">เลือกสถานะงาน</div>
+        <button class="btn-done" onclick="doneJob()" style="font-size:18px;padding:20px;border-radius:14px;margin-bottom:8px">
           ✅ ส่งน้ำเสร็จแล้ว
         </button>
-        <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">กดปุ่มเมื่อส่งน้ำครบแล้ว</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onclick="cancelByCustomer()"
+            style="padding:13px 8px;border-radius:12px;border:1px solid var(--abdr);background:var(--abg);color:var(--amber);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer">
+            🚫 ลูกค้ายกเลิก
+          </button>
+          <button onclick="cancelByDriver()"
+            style="padding:13px 8px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer">
+            ↩️ ไม่รับงาน
+          </button>
+        </div>
       </div>
     </div>
 
@@ -398,7 +586,7 @@ input:focus{outline:none;border-color:var(--blue)}
 // ─── FIREBASE CONFIG ───
 let FB_URL = 'https://bcp-water-truck-default-rtdb.asia-southeast1.firebasedatabase.app';
 let FB_KEY = 'AIzaSyAmgn8yCgD8rc5E5_C8Ca2z37us4GJ634';
-let AS_URL = 'https://script.google.com/macros/s/AKfycbyvvC-LNQ0s8dL0dkyxAxvwiFBcIXCFcEXofl-u8DA8yUy6f9TzakQOXZ54Ox5JuvSv/exec';
+let AS_URL = 'https://script.google.com/macros/s/AKfycbwL-8N6PjcZBCWG_3vtHCfxMduhdFELgYT3810-gjyhnxpnBQh_OiqgK68a12eJSgHa/exec';
 
 // ─── STATE ───
 let truck='', driver='';
@@ -414,88 +602,247 @@ let myMarker=null, destMarker=null, routeLayer=null;
 let myMarkerFull=null, destMarkerFull=null, routeLayerFull=null;
 let knownJobIds=new Set();
 
+// ─── LOCAL STORAGE KEYS ───
+const LS_TRUCK  = 'bcp_truck_id';
+const LS_DRIVER = 'bcp_driver';
+const LS_BRANCH = 'bcp_branch';
+const LS_PHONE  = 'bcp_phone';
+
+function saveProfile(truckId, driverName, branch, phone){
+  try{
+    localStorage.setItem(LS_TRUCK,  truckId);
+    localStorage.setItem(LS_DRIVER, driverName);
+    localStorage.setItem(LS_BRANCH, branch||'');
+    localStorage.setItem(LS_PHONE,  phone||'');
+  }catch(e){}
+}
+
+function loadProfile(){
+  try{
+    return {
+      truck:  localStorage.getItem(LS_TRUCK)||'',
+      driver: localStorage.getItem(LS_DRIVER)||'',
+      branch: localStorage.getItem(LS_BRANCH)||'',
+      phone:  localStorage.getItem(LS_PHONE)||'',
+    };
+  }catch(e){ return {}; }
+}
+
+function clearSaved(){
+  try{ localStorage.removeItem(LS_TRUCK); localStorage.removeItem(LS_DRIVER); localStorage.removeItem(LS_BRANCH); localStorage.removeItem(LS_PHONE); }catch(e){}
+  document.getElementById('saved-profile').style.display='none';
+  document.getElementById('select-form-wrap').style.display='flex';
+  loadTruckList();
+}
+
+function startWithSaved(){
+  const p = loadProfile();
+  if(!p.truck||!p.driver){ clearSaved(); return; }
+  truck  = p.truck;
+  driver = p.driver;
+  launchApp();
+}
+
+// ─── TRUCK LIST from Sheets ───
+let truckList = [];
+
+function loadTruckList(){
+  const url = `${AS_URL}?action=truck_list`;
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 8000;
+  xhr.onload = function(){
+    try{
+      const data = JSON.parse(xhr.responseText);
+      if(data.success && data.trucks && data.trucks.length){
+        truckList = data.trucks;
+        populateTruckSpinner(data.trucks);
+        document.getElementById('setup-loading').style.display='none';
+        document.getElementById('setup-form').style.display='flex';
+        document.getElementById('setup-btn').style.display='block';
+      } else { showManualInput(); }
+    }catch(e){ showManualInput(); }
+  };
+  xhr.onerror = xhr.ontimeout = function(){ showManualInput(); };
+  xhr.send();
+}
+
+function populateTruckSpinner(trucks){
+  const sel = document.getElementById('i-truck-select');
+  sel.innerHTML = '<option value="">-- เลือกรถน้ำ --</option>';
+  trucks.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.truckId;
+    opt.textContent = `${t.truckId} — ${t.driver} (${t.branch})`;
+    opt.dataset.driver = t.driver||'';
+    opt.dataset.branch = t.branch||'';
+    opt.dataset.phone  = t.phone||'';
+    opt.dataset.type   = t.type||'';
+    sel.appendChild(opt);
+  });
+}
+
+function onTruckSelect(){
+  const sel = document.getElementById('i-truck-select');
+  const opt = sel.options[sel.selectedIndex];
+  const card = document.getElementById('truck-detail-card');
+  if(!sel.value){ card.classList.remove('show'); return; }
+  document.getElementById('tc-driver').textContent = opt.dataset.driver||'-';
+  document.getElementById('tc-branch').textContent = opt.dataset.branch||'-';
+  document.getElementById('tc-phone').textContent  = opt.dataset.phone||'-';
+  document.getElementById('tc-type').textContent   = opt.dataset.type||'-';
+  card.classList.add('show');
+  // auto fill ชื่อคนขับ
+  if(opt.dataset.driver && !document.getElementById('i-name').value){
+    document.getElementById('i-name').value = opt.dataset.driver;
+  }
+}
+
+function showManualInput(){
+  document.getElementById('setup-loading').style.display='none';
+  document.getElementById('setup-manual').style.display='flex';
+  document.getElementById('setup-btn').style.display='block';
+}
+
 // ─── SETUP ───
 function startApp(){
-  truck  = document.getElementById('i-truck').value.trim();
-  driver = document.getElementById('i-name').value.trim();
-  if(!truck||!driver){toast('กรุณากรอกหมายเลขรถและชื่อ');return;}
+  const isManual = document.getElementById('setup-manual').style.display !== 'none';
+  let branch='', phone='';
+  if(isManual){
+    truck  = (document.getElementById('i-truck-manual').value||'').trim();
+    driver = (document.getElementById('i-name-manual').value||'').trim();
+  } else {
+    truck  = (document.getElementById('i-truck-select').value||'').trim();
+    driver = (document.getElementById('i-name').value||'').trim();
+    // หา branch/phone จาก truckList
+    const found = truckList.find(t=>t.truckId===truck);
+    if(found){ branch=found.branch||''; phone=found.phone||''; }
+  }
+  if(!truck||!driver){toast('กรุณาเลือกรถและกรอกชื่อ');return;}
+  // บันทึก profile
+  saveProfile(truck, driver, branch, phone);
+  launchApp();
+}
+
+function launchApp(){
   document.getElementById('d-name').textContent=driver;
   document.getElementById('d-truck').textContent=truck;
+  document.getElementById('d-name').textContent=driver;
+  document.getElementById('d-truck').textContent=truck;
+  document.getElementById('loading-truck').textContent=truck;
   show('s-loading'); hide('s-setup');
   initMaps();
   startGPS();
   connectFirebase();
-}
-
-// ─── FIREBASE REALTIME (Server-Sent Events / REST Streaming) ───
-function connectFirebase(){
-  setLoadStep('fb','active');
-
-  // 1. Load current jobs for this truck
-  fetchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`)
-    .then(data=>{
-      setLoadStep('fb','done');
-      setLoadStep('jobs','active');
-      if(data){
-        let pendingOnLoad = null;
-        Object.entries(data).forEach(([k,v])=>{
-          allJobs[k]=v;
-          knownJobIds.add(k);
-          // ถ้ากำลังส่งอยู่แล้ว → restore active job
-          if(v.status==='กำลังส่ง'&&!jobActive){
-            currentJob={...v, jobId:k};
-            jobActive=true; tripCount++;
-            setActiveJobUI(currentJob);
-            showEl('active-wrap'); hideEl('ready-wrap');
-            updateMap();
-          }
-          // ถ้ายัง รอรับ → เก็บไว้แสดง notification
-          if((v.status==='รอรับ'||!v.status) && !jobActive){
-            pendingOnLoad = {...v, jobId:k};
-          }
-        });
-        renderJobs();
-        // แสดง notification งานที่รอรับ (มีอยู่แล้วตอนเปิดแอป)
-        if(pendingOnLoad && !jobActive){
-          const nearest=findNearest(pendingOnLoad, allTrucks);
-          showNewJobNotification(pendingOnLoad, nearest);
-        }
-      }
-      setLoadStep('jobs','done');
-      setTimeout(()=>{ hide('s-loading'); show('s-main'); },400);
-      setFBStatus(true);
-    })
-    .catch(err=>{
-      setLoadStep('fb','done');
-      setFBStatus(false, err.message);
+  // Safety timeout — ถ้าโหลดนานเกิน 6 วินาที ให้ข้ามไปหน้าหลักเลย
+  setTimeout(()=>{
+    const loading = document.getElementById('s-loading');
+    if(loading && !loading.classList.contains('off')){
+      console.log('Timeout — force switch to main');
       hide('s-loading'); show('s-main');
       demoFallback();
-    });
+    }
+  }, 6000);
+}
 
-  // 2. Stream new jobs via SSE
-  streamFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}`, onJobsChange);
+// ─── FIREBASE REALTIME ───
+function connectFirebase(){
+  setLoadStep('fb','active');
+  const safeTruck = truck.replace(/[^a-zA-Z0-9]/g,'_');
 
-  // 3. Stream all trucks GPS (for nearest recommendation)
-  streamFirebase('/trucks', onTrucksChange);
+  // ใช้ XMLHttpRequest แทน fetch (รองรับ Android WebView + local file)
+  xhrGet(`${FB_URL}/jobs/${safeTruck}.json?auth=${FB_KEY}`, function(data){
+    setLoadStep('fb','done');
+    setLoadStep('jobs','active');
+    if(data && typeof data==='object'){
+      let pendingOnLoad=null;
+      Object.entries(data).forEach(([k,v])=>{
+        if(!v) return;
+        allJobs[k]=v;
+        knownJobIds.add(k);
+        if(v.status==='กำลังส่ง'&&!jobActive){
+          currentJob={...v,jobId:k};
+          jobActive=true; tripCount++;
+          setActiveJobUI(currentJob);
+          showEl('active-wrap'); hideEl('ready-wrap');
+          updateMap();
+        }
+        if((v.status==='รอรับ'||!v.status)&&!jobActive){
+          pendingOnLoad={...v,jobId:k};
+        }
+      });
+      renderJobs();
+      if(pendingOnLoad&&!jobActive){
+        showNewJobNotification(pendingOnLoad, findNearest(pendingOnLoad,allTrucks));
+      }
+    }
+    setLoadStep('jobs','done');
+    setTimeout(()=>{ hide('s-loading'); show('s-main'); },300);
+    setFBStatus(true);
+
+    // Stream SSE หลังจากโหลดเสร็จ
+    streamFirebase(`/jobs/${safeTruck}`, onJobsChange);
+    streamFirebase('/trucks', onTrucksChange);
+
+    // Poll ทุก 30 วินาทีเป็น fallback ถ้า SSE ไม่ทำงาน
+    setInterval(()=>pollFirebase(safeTruck), 30000);
+
+  }, function(err){
+    console.log('Firebase XHR error:', err);
+    setLoadStep('fb','done');
+    setLoadStep('jobs','done');
+    setFBStatus(false, err);
+    hide('s-loading'); show('s-main');
+    demoFallback();
+  });
+}
+
+// XMLHttpRequest GET (รองรับทุก environment)
+function xhrGet(url, onSuccess, onError){
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 8000;
+  xhr.onload = function(){
+    if(xhr.status===200){
+      try{ onSuccess(JSON.parse(xhr.responseText)); }
+      catch(e){ onError('Parse error: '+e.message); }
+    } else {
+      onError('HTTP '+xhr.status);
+    }
+  };
+  xhr.onerror = function(){ onError('Network error'); };
+  xhr.ontimeout = function(){ onError('Timeout'); };
+  xhr.send();
+}
+
+// Poll Firebase ทุก 30 วินาที (fallback)
+function pollFirebase(safeTruck){
+  xhrGet(`${FB_URL}/jobs/${safeTruck}.json?auth=${FB_KEY}`, function(data){
+    if(data&&typeof data==='object') onJobsChange('/', data);
+  }, ()=>{});
+  xhrGet(`${FB_URL}/trucks.json?auth=${FB_KEY}`, function(data){
+    if(data&&typeof data==='object') onTrucksChange('/', data);
+  }, ()=>{});
 }
 
 function fetchFirebase(path){
-  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`)
-    .then(r=>{ if(!r.ok) throw new Error('Firebase '+r.status); return r.json(); });
+  return new Promise((resolve,reject)=>{
+    xhrGet(`${FB_URL}${path}.json?auth=${FB_KEY}`, resolve, reject);
+  });
 }
 
 function writeFirebase(path, data){
-  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`,{
-    method:'PUT', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(data)
-  });
+  const xhr=new XMLHttpRequest();
+  xhr.open('PUT',`${FB_URL}${path}.json?auth=${FB_KEY}`,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.send(JSON.stringify(data));
 }
 
 function patchFirebase(path, data){
-  return fetch(`${FB_URL}${path}.json?auth=${FB_KEY}`,{
-    method:'PATCH', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(data)
-  });
+  const xhr=new XMLHttpRequest();
+  xhr.open('PATCH',`${FB_URL}${path}.json?auth=${FB_KEY}`,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.send(JSON.stringify(data));
 }
 
 // Firebase SSE streaming
@@ -630,6 +977,193 @@ function confirmDecline(reason){
   toast('ปฏิเสธ: '+reason);
 }
 
+// ─── PHOTO FUNCTIONS ───
+const photoData = {1: null, 2: null};
+
+function previewPhoto(num, input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const base64 = e.target.result;
+    photoData[num] = {base64, name: file.name, type: file.type};
+    // แสดง preview
+    const preview = document.getElementById('photo'+num+'-preview');
+    preview.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
+    preview.style.border = '1.5px solid var(--green)';
+    document.getElementById('photo'+num+'-clear').style.display = 'block';
+    // แสดงปุ่มอัพโหลด
+    document.getElementById('photo-upload-btn').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(num){
+  photoData[num] = null;
+  document.getElementById('photo'+num+'-input').value = '';
+  const preview = document.getElementById('photo'+num+'-preview');
+  preview.innerHTML = `<span style="font-size:28px">📸</span><span style="font-size:11px;color:var(--text3)">รูปที่ ${num}</span>`;
+  preview.style.border = '1.5px dashed var(--border2)';
+  document.getElementById('photo'+num+'-clear').style.display = 'none';
+  // ซ่อนปุ่มอัพโหลดถ้าไม่มีรูปเลย
+  if(!photoData[1] && !photoData[2]){
+    document.getElementById('photo-upload-btn').style.display = 'none';
+  }
+}
+
+function uploadPhotos(){
+  const photos = [photoData[1], photoData[2]].filter(Boolean);
+  if(!photos.length){ toast('ยังไม่มีรูปถ่าย'); return; }
+  if(!AS_URL){ toast('ไม่มี Apps Script URL'); return; }
+
+  const statusEl = document.getElementById('photo-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '⏳ กำลังอัพโหลด...';
+  document.getElementById('photo-upload-btn').disabled = true;
+
+  const jobId = currentJob?.jobId || 'unknown';
+  const dest  = currentJob?.dest || '';
+  let uploaded = 0;
+
+  photos.forEach((photo, i) => {
+    // ย่อขนาดรูปก่อนส่ง
+    compressBase64(photo.base64, 800, 0.7, function(compressed){
+      postViaGet('upload_photo', {
+        jobId, dest, driver,
+        truck,
+        photoNum: i+1,
+        photoName: `${truck}_${jobId}_${i+1}_${now().replace(':','')}.jpg`,
+        // ส่ง base64 ผ่าน POST (GET มี limit)
+      });
+      // ส่งรูปผ่าน POST XHR
+      const payload = {
+        type: 'upload_photo',
+        form: {
+          jobId, dest, driver, truck,
+          photoNum: i+1,
+          photoData: compressed,
+          photoName: `${truck}_${jobId}_photo${i+1}_${now().replace(':','')}.jpg`,
+          timestamp: now()
+        }
+      };
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', AS_URL, true);
+      xhr.setRequestHeader('Content-Type', 'text/plain');
+      xhr.onload = function(){
+        uploaded++;
+        statusEl.textContent = `✅ อัพโหลดรูป ${uploaded}/${photos.length} แล้ว`;
+        if(uploaded === photos.length){
+          toast('✅ อัพโหลดรูปครบแล้ว');
+          document.getElementById('photo-upload-btn').disabled = false;
+          statusEl.textContent = `✅ อัพโหลด ${uploaded} รูปสำเร็จ`;
+        }
+      };
+      xhr.onerror = function(){
+        uploaded++;
+        statusEl.textContent = `⚠️ อัพโหลดผ่าน URL แทน`;
+        document.getElementById('photo-upload-btn').disabled = false;
+      };
+      xhr.send(JSON.stringify(payload));
+    });
+  });
+}
+
+// ย่อขนาดรูปด้วย Canvas
+function compressBase64(base64, maxWidth, quality, callback){
+  const img = new Image();
+  img.onload = function(){
+    const canvas = document.createElement('canvas');
+    let w = img.width, h = img.height;
+    if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.src = base64;
+}
+
+// รีเซ็ตรูปเมื่อเปลี่ยนงาน
+function resetPhotos(){
+  photoData[1]=null; photoData[2]=null;
+  [1,2].forEach(n=>{
+    const el=document.getElementById('photo'+n+'-input');
+    if(el) el.value='';
+    const prev=document.getElementById('photo'+n+'-preview');
+    if(prev){ prev.innerHTML=`<span style="font-size:28px">📸</span><span style="font-size:11px;color:var(--text3)">รูปที่ ${n}</span>`; prev.style.border='1.5px dashed var(--border2)'; }
+    const clr=document.getElementById('photo'+n+'-clear');
+    if(clr) clr.style.display='none';
+  });
+  const btn=document.getElementById('photo-upload-btn');
+  if(btn) btn.style.display='none';
+  const st=document.getElementById('photo-status');
+  if(st) st.style.display='none';
+}
+
+// ─── SAVE NOTE ───
+function saveNote(){
+  if(!currentJob) return;
+  const noteEl = document.getElementById('aj-note');
+  const noteText = noteEl.value.trim();
+  if(!noteText){ toast('กรุณากรอกหมายเหตุก่อน'); return; }
+  // format: "(ชื่อคนขับ HH:MM) ข้อความ"
+  const noteWithDriver = `(${driver} ${now()}) ${noteText}`;
+  // บันทึกใน Firebase
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{note:noteText,noteBy:driver,noteAt:now()});
+  // ส่งไป Sheets ผ่าน GET — append ต่อจากของเดิม
+  postViaGet('save_note',{
+    jobId: currentJob.jobId,
+    note: noteWithDriver,
+    rowIndex: currentJob.rowIndex||'',
+    dest: currentJob.dest||''
+  });
+  post('save_note',{
+    jobId: currentJob.jobId,
+    note: noteWithDriver,
+    rowIndex: currentJob.rowIndex||'',
+    dest: currentJob.dest||''
+  });
+  toast('💾 บันทึกหมายเหตุแล้ว');
+}
+
+// ─── CANCEL BY CUSTOMER ───
+function cancelByCustomer(){
+  if(!currentJob) return;
+  if(!confirm('ยืนยัน: ลูกค้ายกเลิกงานนี้?')) return;
+  const dest=currentJob.dest;
+  HISTORY.push({t:now(),txt:dest+' — ลูกค้ายกเลิก',ok:false});
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{status:'ลูกค้ายกเลิก',cancelAt:now()});
+  post('job_cancel',{jobId:currentJob.jobId,dest,reason:'ลูกค้ายกเลิก',rowIndex:currentJob.rowIndex,status:'ลูกค้ายกเลิก'});
+  postViaGet('job_cancel',{jobId:currentJob.jobId,dest,status:'ลูกค้ายกเลิก'});
+  currentJob=null; jobActive=false;
+  hideEl('active-wrap'); showEl('ready-wrap');
+  hideEl('map-section');
+  [routeLayer,routeLayerFull,destMarker,destMarkerFull].forEach(l=>{try{if(l)l.remove();}catch(e){}});
+  resetPhotos();
+  renderHistory(); renderJobs();
+  toast('🚫 บันทึก: ลูกค้ายกเลิกงาน');
+  if(navigator.vibrate) navigator.vibrate(100);
+}
+
+// ─── CANCEL BY DRIVER (ไม่รับงาน) ───
+function cancelByDriver(){
+  if(!currentJob) return;
+  if(!confirm('ยืนยัน: ยกเลิกงานนี้?')) return;
+  const dest=currentJob.dest;
+  HISTORY.push({t:now(),txt:dest+' — ยกเลิกงาน',ok:false});
+  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{status:'ปฏิเสธ',cancelAt:now()});
+  post('job_decline',{jobId:currentJob.jobId,dest,reason:'คนขับยกเลิก',rowIndex:currentJob.rowIndex,status:'ปฏิเสธ'});
+  postViaGet('job_decline',{jobId:currentJob.jobId,dest,status:'ปฏิเสธ'});
+  currentJob=null; jobActive=false;
+  hideEl('active-wrap'); showEl('ready-wrap');
+  hideEl('map-section');
+  [routeLayer,routeLayerFull,destMarker,destMarkerFull].forEach(l=>{try{if(l)l.remove();}catch(e){}});
+  resetPhotos();
+  renderHistory(); renderJobs();
+  toast('↩️ ยกเลิกงานแล้ว');
+  if(navigator.vibrate) navigator.vibrate(100);
+}
+
 // ─── DONE ───
 function doneJob(){
   if(!currentJob) return;
@@ -644,6 +1178,7 @@ function doneJob(){
   hideEl('active-wrap'); showEl('ready-wrap');
   hideEl('map-section');
   [routeLayer,routeLayerFull,destMarker,destMarkerFull].forEach(l=>{try{if(l)l.remove();}catch(e){}});
+  resetPhotos();
   renderHistory();
   renderJobs();
   toast('✅ บันทึกเที่ยวที่ '+tripCount+' แล้ว');
@@ -784,6 +1319,28 @@ function setActiveJobUI(j){
   document.getElementById('aj-dest').textContent=j.dest||'-';
   document.getElementById('aj-sub').textContent=j.sub||'-';
   document.getElementById('aj-trip').textContent='เที่ยวที่ '+tripCount;
+  document.getElementById('aj-water').textContent=(j.water||'-')+' ลบ.ม.';
+  document.getElementById('aj-queue').textContent=(j.queue||'-')+' คน';
+  // หมายเหตุเดิม
+  if(j.note) document.getElementById('aj-note').value=j.note;
+  else document.getElementById('aj-note').value='';
+  // ชื่อลูกค้า
+  const custRow=document.getElementById('aj-customer-row');
+  const custEl=document.getElementById('aj-customer');
+  if(j.customer||j.customerName){
+    custEl.textContent=j.customer||j.customerName;
+    custRow.style.display='block';
+  } else { custRow.style.display='none'; }
+  // เบอร์ติดต่อ
+  const phoneRow=document.getElementById('aj-phone-row');
+  const phoneLink=document.getElementById('aj-phone-link');
+  const phoneNum=document.getElementById('aj-phone-num');
+  if(j.phone||j.tel){
+    const tel=j.phone||j.tel;
+    phoneNum.textContent=tel;
+    phoneLink.href='tel:'+tel.replace(/[^0-9+]/g,'');
+    phoneRow.style.display='block';
+  } else { phoneRow.style.display='none'; }
 }
 
 function renderHistory(){
@@ -800,11 +1357,11 @@ function renderHistory(){
 function renderJobs(){
   const jobs=Object.entries(allJobs);
   if(!jobs.length){document.getElementById('jobs-list').innerHTML='<div style="text-align:center;padding:28px;font-size:13px;color:var(--text3)">ยังไม่มีงาน</div>';return;}
-  const clsMap={'รอรับ':'ta','กำลังส่ง':'tb','เสร็จแล้ว':'tg','ปฏิเสธ':'tr'};
+  const clsMap={'รอรับ':'ta','กำลังส่ง':'tb','เสร็จแล้ว':'tg','ปฏิเสธ':'tr','ลูกค้ายกเลิก':'tr'};
   document.getElementById('jobs-list').innerHTML=jobs.map(([k,j])=>{
     const isPending=(j.status==='รอรับ'||!j.status)&&!jobActive;
     const isActive=j.status==='กำลังส่ง';
-    const isDone=j.status==='เสร็จแล้ว'||j.status==='ปฏิเสธ';
+    const isDone=j.status==='เสร็จแล้ว'||j.status==='ปฏิเสธ'||j.status==='ลูกค้ายกเลิก';
     const dist=j.lat&&j.lng&&coords?haverDist(coords.lat,coords.lng,parseFloat(j.lat),parseFloat(j.lng)).toFixed(1)+' กม.':'';
     return `<div class="jcard" style="${isPending?'border-color:var(--abdr);':''}${isActive?'border-color:var(--bbdr);':''}${isDone?'opacity:0.7;':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
@@ -895,24 +1452,24 @@ function goTab(tab){
   if(tab==='jobs') document.getElementById('nb-badge').style.display='none';
 }
 
-// ─── POST to Apps Script ───
+// ─── POST to Apps Script via XHR ───
 function post(type,form){
   if(!AS_URL) return;
   const payload={type,form:{...form,truck,driver,timestamp:now()}};
-  // ใช้ no-cors เพื่อ bypass CORS จาก local file / mobile
-  fetch(AS_URL,{
-    method:'POST',
-    mode:'no-cors',
-    headers:{'Content-Type':'text/plain'}, // no-cors ต้องใช้ text/plain
-    body:JSON.stringify(payload)
-  }).then(()=>console.log('POST sent:',type))
-    .catch(e=>console.error('POST error:',e));
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST',AS_URL,true);
+  xhr.setRequestHeader('Content-Type','text/plain');
+  xhr.onload=()=>console.log('POST sent:',type,xhr.status);
+  xhr.onerror=()=>{ console.log('POST XHR failed, trying GET'); postViaGet(type,form); };
+  xhr.send(JSON.stringify(payload));
 }
-// fallback via GET (ส่งข้อมูลผ่าน URL params)
+// fallback via GET
 function postViaGet(type,form){
   if(!AS_URL) return;
   const p=new URLSearchParams({type,truck,driver,...form,timestamp:now()});
-  fetch(`${AS_URL}?${p.toString()}`).catch(()=>{});
+  const xhr=new XMLHttpRequest();
+  xhr.open('GET',`${AS_URL}?${p.toString()}`,true);
+  xhr.send();
 }
 
 // ─── HELPERS ───
@@ -926,6 +1483,24 @@ function toast(msg){
   setTimeout(()=>el.classList.remove('on'),2600);
 }
 function now(){return new Date().toTimeString().slice(0,5);}
+
+// โหลดรายการรถตอนเปิดแอป — เช็ค saved profile ก่อน
+window.addEventListener('DOMContentLoaded', ()=>{
+  const p = loadProfile();
+  if(p.truck && p.driver){
+    // มีข้อมูลบันทึกไว้ → แสดง saved profile
+    document.getElementById('saved-truck-id').textContent   = p.truck;
+    document.getElementById('saved-driver-name').textContent= p.driver;
+    document.getElementById('saved-branch').textContent     = p.branch||'';
+    document.getElementById('saved-profile').style.display  = 'block';
+    document.getElementById('select-form-wrap').style.display = 'none';
+  } else {
+    // ไม่มี → แสดงฟอร์มเลือก
+    document.getElementById('saved-profile').style.display    = 'none';
+    document.getElementById('select-form-wrap').style.display = 'flex';
+    loadTruckList();
+  }
+});
 </script>
 </body>
 </html>
