@@ -289,7 +289,7 @@ input:focus{outline:none;border-color:var(--blue)}
   <div class="loading-body">
     <div class="spinner"></div>
     <div class="loading-h">กำลังเชื่อมต่อ...</div>
-    <div class="loading-sub" id="loading-sub">เชื่อมต่อ Firebase Realtime Database</div>
+    <div class="loading-sub" id="loading-sub">ดึงงานของ <span id="loading-truck">รถ</span></div>
     <div class="loading-steps">
       <div class="lstep" id="lstep-fb"><div class="lstep-dot"></div>Firebase Realtime DB</div>
       <div class="lstep" id="lstep-gps"><div class="lstep-dot"></div>รับสัญญาณ GPS</div>
@@ -647,10 +647,14 @@ function startWithSaved(){
 let truckList = [];
 
 function loadTruckList(){
+  // ถ้าไม่มี AS_URL → ใช้ manual input ทันที
+  if(!AS_URL){ showManualInput(); return; }
+
   const url = `${AS_URL}?action=truck_list`;
   const xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
-  xhr.timeout = 8000;
+  xhr.timeout = 5000; // 5 วินาที
+
   xhr.onload = function(){
     try{
       const data = JSON.parse(xhr.responseText);
@@ -660,11 +664,51 @@ function loadTruckList(){
         document.getElementById('setup-loading').style.display='none';
         document.getElementById('setup-form').style.display='flex';
         document.getElementById('setup-btn').style.display='block';
-      } else { showManualInput(); }
-    }catch(e){ showManualInput(); }
+      } else {
+        // Apps Script ตอบได้ แต่ไม่มีข้อมูล Sheet "รถ" → ใช้ demo
+        useDemoTrucks();
+      }
+    }catch(e){ useDemoTrucks(); }
   };
-  xhr.onerror = xhr.ontimeout = function(){ showManualInput(); };
+
+  xhr.onerror = function(){ useDemoTrucks(); };
+  xhr.ontimeout = function(){
+    console.log('truck_list timeout — using demo');
+    useDemoTrucks();
+  };
+
   xhr.send();
+
+  // Safety: ถ้ายังอยู่ที่ loading หลัง 6 วินาที → force manual
+  setTimeout(()=>{
+    const loading = document.getElementById('setup-loading');
+    if(loading && loading.style.display !== 'none'){
+      console.log('Safety timeout — show manual input');
+      useDemoTrucks();
+    }
+  }, 6000);
+}
+
+// ใช้รายการรถ demo เมื่อโหลดจาก Sheets ไม่ได้
+function useDemoTrucks(){
+  const demo = [
+    {truckId:'WT-01-015', driver:'สมชาย จ.',     branch:'สาขา 01', phone:'081-234-5678', type:'รถน้ำ 15 ลบ.ม.'},
+    {truckId:'WT-01-032', driver:'อาทิตย์ ก.',   branch:'สาขา 01', phone:'081-345-6789', type:'รถน้ำ 15 ลบ.ม.'},
+    {truckId:'WT-02-008', driver:'จักรกฤษณ์ ค.', branch:'สาขา 02', phone:'082-456-7890', type:'รถน้ำ 12 ลบ.ม.'},
+    {truckId:'WT-02-029', driver:'ธนกิจ ก.',     branch:'สาขา 02', phone:'085-789-0123', type:'รถน้ำ 12 ลบ.ม.'},
+    {truckId:'WT-03-021', driver:'ณัฐพล ส.',     branch:'สาขา 03', phone:'083-567-8901', type:'รถน้ำ 15 ลบ.ม.'},
+    {truckId:'WT-04-017', driver:'พงศกร ก.',     branch:'สาขา 04', phone:'084-678-9012', type:'รถน้ำ 15 ลบ.ม.'},
+  ];
+  truckList = demo;
+  populateTruckSpinner(demo);
+  document.getElementById('setup-loading').style.display='none';
+  document.getElementById('setup-form').style.display='flex';
+  document.getElementById('setup-btn').style.display='block';
+  // แจ้งว่าใช้ demo (ไม่ error ให้คนขับตกใจ)
+  const note = document.createElement('div');
+  note.style.cssText='font-size:11px;color:var(--amber);text-align:center;margin-top:4px';
+  note.textContent='⚠️ ใช้รายการรถสำรอง — กรุณาตรวจสอบหมายเลขรถ';
+  document.getElementById('setup-form').appendChild(note);
 }
 
 function populateTruckSpinner(trucks){
@@ -718,18 +762,24 @@ function startApp(){
     const found = truckList.find(t=>t.truckId===truck);
     if(found){ branch=found.branch||''; phone=found.phone||''; }
   }
-  if(!truck||!driver){toast('กรุณาเลือกรถและกรอกชื่อ');return;}
+  // ถ้าไม่กรอกชื่อ → ใช้ชื่อคนขับประจำจากรถที่เลือก
+  if(!driver){
+    const found = truckList.find(t=>t.truckId===truck);
+    driver = found?.driver||'';
+  }
+  if(!truck){toast('กรุณาเลือกรถน้ำ');return;}
+  if(!driver){toast('กรุณากรอกชื่อคนขับ');return;}
   // บันทึก profile
   saveProfile(truck, driver, branch, phone);
   launchApp();
 }
 
 function launchApp(){
-  document.getElementById('d-name').textContent=driver;
-  document.getElementById('d-truck').textContent=truck;
-  document.getElementById('d-name').textContent=driver;
-  document.getElementById('d-truck').textContent=truck;
-  document.getElementById('loading-truck').textContent=truck;
+  // ตั้งค่า UI elements อย่างปลอดภัย
+  const setEl = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  setEl('d-name', driver);
+  setEl('d-truck', truck);
+  setEl('loading-truck', truck);
   show('s-loading'); hide('s-setup');
   initMaps();
   startGPS();
