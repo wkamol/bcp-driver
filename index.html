@@ -113,7 +113,7 @@ input:focus{outline:none;border-color:var(--blue)}
 #leaflet-map{height:210px;width:100%}
 #leaflet-map-full{height:100%;width:100%}
 .leaflet-container{background:#0b1520}
-.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border2)}
+.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border2);min-height:220px;display:block}
 .route-bar{background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:9px 13px;display:flex;align-items:center;gap:11px}
 .rdivider{width:1px;height:26px;background:var(--border);flex-shrink:0}
 .rlabel{font-size:11px;color:var(--text3)}
@@ -187,6 +187,9 @@ input:focus{outline:none;border-color:var(--blue)}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .shake{animation:shake .3s ease 2}
+.leaflet-tile-container img{max-width:none!important}
+.leaflet-container{background:#0b1520!important}
+#leaflet-map,.map-wrap{position:relative;z-index:1}
 
 /* TRUCK SPINNER */
 .truck-spinner-wrap{position:relative}
@@ -346,6 +349,11 @@ input:focus{outline:none;border-color:var(--blue)}
             <button class="btn-no" onclick="declineJob()">❌ ไม่รับ</button>
             <button class="btn-yes" onclick="acceptJob()">✅ รับงาน</button>
           </div>
+          <!-- ปุ่มยกเลิกแก้ไข — แสดงเฉพาะตอน edit mode -->
+          <button id="cancel-edit-btn" onclick="cancelEdit()"
+            style="display:none;width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:14px;font-family:inherit;cursor:pointer">
+            ↩️ ยกเลิกแก้ไข — คืนสถานะเดิม
+          </button>
         </div>
       </div>
     </div>
@@ -995,12 +1003,18 @@ function acceptJob(){
   if(!pendingJob) return;
   hideEl('new-job-wrap');
   document.getElementById('nb-badge').style.display='none';
+  clearEditMode();
   currentJob=pendingJob; pendingJob=null;
   jobActive=true; tripCount++;
   setActiveJobUI(currentJob);
   showEl('active-wrap'); hideEl('ready-wrap');
   HISTORY.push({t:now(),txt:currentJob.dest+' — รับงานแล้ว',ok:false});
-  renderHistory(); updateMap();
+  renderHistory(); renderJobs(); updateMap();
+  // Scroll to done button
+  setTimeout(()=>{
+    const el=document.getElementById('active-wrap');
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  },300);
   // Update Firebase status
   patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${currentJob.jobId}`,{status:'กำลังส่ง',acceptedAt:now(),driver});
   // Update truck status in Firebase
@@ -1280,6 +1294,13 @@ function updateMap(){
       ['route-time','route-time-full'].forEach(id=>document.getElementById(id).textContent=time);
     }).catch(()=>drawStraight(myPos,dPos));
   document.getElementById('map-section').style.display='flex';
+  // Force Leaflet re-render หลัง container โผล่
+  setTimeout(()=>{ 
+    if(leafletMap) leafletMap.invalidateSize(true);
+  }, 100);
+  setTimeout(()=>{ 
+    if(leafletMap) leafletMap.invalidateSize(true);
+  }, 500);
 }
 
 function drawStraight(o,d){
@@ -1451,18 +1472,48 @@ function renderJobs(){
   }).join('');
 }
 
+// บันทึกสถานะเดิมก่อนแก้ไข เผื่อ cancel
+let editingJobId = null;
+let editingJobPrevStatus = null;
+
 function reopenJob(jobId){
   const j=allJobs[jobId];
   if(!j) return;
-  // reset สถานะกลับเป็น รอรับ ใน Firebase
-  patchFirebase(`/jobs/${truck.replace(/[^a-zA-Z0-9]/g,'_')}/${jobId}`,{status:'รอรับ'});
+  // บันทึกสถานะเดิมไว้
+  editingJobId = jobId;
+  editingJobPrevStatus = j.status;
+  // เปลี่ยนสถานะใน local เป็น รอรับ (ไม่ push ไป Firebase ก่อน)
   allJobs[jobId]={...j, status:'รอรับ'};
-  // แสดง notification รับ/ไม่รับ
   pendingJob={...j, jobId, status:'รอรับ'};
   showNewJobNotification(pendingJob, null);
+  // แสดงปุ่มยกเลิกแก้ไข
+  const cancelBtn = document.getElementById('cancel-edit-btn');
+  if(cancelBtn) cancelBtn.style.display='block';
   renderJobs();
   goTab('main');
-  toast('✏️ เปิดให้เลือกรับ/ไม่รับอีกครั้ง');
+  toast('✏️ เลือกสถานะใหม่หรือกด ยกเลิกแก้ไข');
+}
+
+function cancelEdit(){
+  if(!editingJobId || !editingJobPrevStatus) return;
+  allJobs[editingJobId]={...allJobs[editingJobId], status:editingJobPrevStatus};
+  pendingJob=null;
+  hideEl('new-job-wrap');
+  document.getElementById('nb-badge').style.display='none';
+  const cancelBtn=document.getElementById('cancel-edit-btn');
+  if(cancelBtn) cancelBtn.style.display='none';
+  editingJobId=null;
+  editingJobPrevStatus=null;
+  renderJobs();
+  toast('↩️ ยกเลิกแก้ไข — สถานะเดิมคืนแล้ว');
+}
+
+// ซ่อนปุ่มยกเลิกแก้ไขเมื่อปิด notification ปกติ
+function clearEditMode(){
+  editingJobId=null;
+  editingJobPrevStatus=null;
+  const cancelBtn=document.getElementById('cancel-edit-btn');
+  if(cancelBtn) cancelBtn.style.display='none';
 }
 
 function acceptJobById(jobId){
@@ -1470,8 +1521,12 @@ function acceptJobById(jobId){
   if(!j) return;
   pendingJob={...j, jobId};
   acceptJob();
-  renderJobs(); // refresh buttons in jobs list
   goTab('main');
+  // scroll ไปที่ปุ่ม ส่งน้ำเสร็จ ทันที
+  setTimeout(()=>{
+    const el=document.getElementById('active-wrap');
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  },400);
 }
 
 function declineJobById(jobId){
