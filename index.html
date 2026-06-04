@@ -480,7 +480,7 @@ input:focus{outline:none;border-color:var(--blue)}
 
         <!-- สถานะงาน -->
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">เลือกสถานะงาน</div>
-        <button class="btn-done" onclick="doneJob()" style="font-size:18px;padding:20px;border-radius:14px;margin-bottom:8px">
+        <button class="btn-done" id="btn-done-main" onclick="doneJobWithFeedback(this)" style="font-size:18px;padding:20px;border-radius:14px;margin-bottom:8px">
           ✅ ส่งน้ำเสร็จแล้ว
         </button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -1190,6 +1190,21 @@ function saveNote(){
   toast('💾 บันทึกหมายเหตุแล้ว');
 }
 
+// ─── DONE WITH INSTANT FEEDBACK ───
+function doneJobWithFeedback(btn){
+  if(!btn) return doneJob();
+  // เปลี่ยนปุ่มทันที — ก่อน async จะเสร็จ
+  btn.disabled = true;
+  btn.style.background = 'var(--bg3)';
+  btn.style.border = '1px solid var(--gbdr)';
+  btn.style.color = 'var(--green)';
+  btn.innerHTML = '⏳ กำลังบันทึก...';
+  // สั่นมือถือ feedback
+  if(navigator.vibrate) navigator.vibrate(80);
+  // delay เล็กน้อยให้ UI update ก่อน แล้วค่อย process
+  setTimeout(()=>doneJob(), 150);
+}
+
 // ─── CANCEL BY CUSTOMER ───
 function cancelByCustomer(){
   if(!currentJob) return;
@@ -1459,7 +1474,7 @@ function renderJobs(){
         </button>
       </div>`:''}
       ${isActive?`
-      <button onclick="doneJob()"
+      <button id="btn-done-jobs-${k}" onclick="doneJobWithFeedback(this)"
         style="width:100%;padding:12px;border-radius:11px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:2px">
         ✅ ส่งน้ำเสร็จแล้ว
       </button>`:''}
