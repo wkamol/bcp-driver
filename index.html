@@ -380,34 +380,44 @@ input:focus{outline:none;border-color:var(--blue)}
 
         <!-- ปลายทาง -->
         <div class="aj-dest" id="aj-dest">-</div>
-        <div class="aj-sub" id="aj-sub" style="margin-bottom:12px">-</div>
+        <div class="aj-sub" id="aj-sub" style="margin-bottom:10px">-</div>
 
-        <!-- รายละเอียดงาน -->
-        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
-          <!-- ปริมาณน้ำ / ผู้รอรับ -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ปริมาณน้ำ</div>
-              <div style="font-size:15px;font-weight:600;color:var(--text)" id="aj-water">-</div>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ผู้รอรับ</div>
-              <div style="font-size:15px;font-weight:600;color:var(--text)" id="aj-queue">-</div>
-            </div>
-          </div>
+        <!-- ✅ ปุ่มส่งน้ำเสร็จ — อยู่บนสุด เห็นทันที ไม่ต้อง scroll -->
+        <button class="btn-done" id="btn-done-main" onclick="doneJobWithFeedback(this)"
+          style="font-size:19px;padding:22px;border-radius:14px;margin-bottom:10px;width:100%">
+          ✅ ส่งน้ำเสร็จแล้ว
+        </button>
+
+        <!-- ชื่อลูกค้า + เบอร์โทร — เด่นชัด ใต้ปุ่ม -->
+        <div id="aj-contact-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;gap:8px;flex-direction:column">
           <!-- ชื่อลูกค้า -->
           <div id="aj-customer-row" style="display:none">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ชื่อลูกค้า</div>
-            <div style="font-size:14px;color:var(--text)" id="aj-customer">-</div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">👤 ชื่อลูกค้า</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text)" id="aj-customer">-</div>
           </div>
-          <!-- เบอร์ติดต่อ -->
+          <!-- เบอร์ติดต่อ — กดโทรได้ทันที -->
           <div id="aj-phone-row" style="display:none">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">เบอร์ติดต่อ</div>
-            <a id="aj-phone-link" href="tel:" style="display:flex;align-items:center;gap:8px;background:var(--gbg);border:1px solid var(--gbdr);border-radius:10px;padding:10px 14px;text-decoration:none">
-              <span style="font-size:18px">📞</span>
-              <span style="font-size:16px;font-weight:700;color:var(--green)" id="aj-phone-num">-</span>
-              <span style="font-size:12px;color:var(--text2);margin-left:auto">กดโทรทันที</span>
+            <a id="aj-phone-link" href="tel:"
+              style="display:flex;align-items:center;gap:10px;background:var(--gbg);border:1px solid var(--gbdr);border-radius:10px;padding:12px 14px;text-decoration:none;margin-top:6px">
+              <span style="font-size:22px">📞</span>
+              <div style="flex:1">
+                <div style="font-size:11px;color:var(--green);margin-bottom:1px">กดโทรหาลูกค้าทันที</div>
+                <div style="font-size:18px;font-weight:700;color:var(--green)" id="aj-phone-num">-</div>
+              </div>
+              <span style="font-size:20px">▶</span>
             </a>
+          </div>
+        </div>
+
+        <!-- รายละเอียดงาน (น้ำ/คิว) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ปริมาณน้ำ</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text)" id="aj-water">-</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">ผู้รอรับ</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text)" id="aj-queue">-</div>
           </div>
         </div>
 
@@ -478,11 +488,8 @@ input:focus{outline:none;border-color:var(--blue)}
           </button>
         </div>
 
-        <!-- สถานะงาน -->
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">เลือกสถานะงาน</div>
-        <button class="btn-done" id="btn-done-main" onclick="doneJobWithFeedback(this)" style="font-size:18px;padding:20px;border-radius:14px;margin-bottom:8px">
-          ✅ ส่งน้ำเสร็จแล้ว
-        </button>
+        <!-- ปุ่มรอง: ยกเลิก -->
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">ตัวเลือกเพิ่มเติม</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <button onclick="cancelByCustomer()"
             style="padding:13px 8px;border-radius:12px;border:1px solid var(--abdr);background:var(--abg);color:var(--amber);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer">
@@ -1410,23 +1417,28 @@ function setActiveJobUI(j){
   // หมายเหตุเดิม
   if(j.note) document.getElementById('aj-note').value=j.note;
   else document.getElementById('aj-note').value='';
-  // ชื่อลูกค้า
+  // ชื่อลูกค้า + เบอร์โทร
+  const contactBox=document.getElementById('aj-contact-box');
   const custRow=document.getElementById('aj-customer-row');
   const custEl=document.getElementById('aj-customer');
-  if(j.customer||j.customerName){
-    custEl.textContent=j.customer||j.customerName;
-    custRow.style.display='block';
-  } else { custRow.style.display='none'; }
-  // เบอร์ติดต่อ
   const phoneRow=document.getElementById('aj-phone-row');
   const phoneLink=document.getElementById('aj-phone-link');
   const phoneNum=document.getElementById('aj-phone-num');
+  let hasContact=false;
+  if(j.customer||j.customerName){
+    custEl.textContent=j.customer||j.customerName;
+    custRow.style.display='block';
+    hasContact=true;
+  } else { custRow.style.display='none'; }
   if(j.phone||j.tel){
     const tel=j.phone||j.tel;
     phoneNum.textContent=tel;
     phoneLink.href='tel:'+tel.replace(/[^0-9+]/g,'');
     phoneRow.style.display='block';
+    hasContact=true;
   } else { phoneRow.style.display='none'; }
+  // แสดง contact box เฉพาะเมื่อมีข้อมูล
+  if(contactBox) contactBox.style.display=hasContact?'flex':'none';
 }
 
 function renderHistory(){
