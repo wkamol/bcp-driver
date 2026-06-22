@@ -358,18 +358,6 @@ input:focus{outline:none;border-color:var(--blue)}
       </div>
     </div>
 
-    <!-- MAP -->
-    <div id="map-section" style="display:none;flex-direction:column;gap:9px">
-      <div class="map-wrap"><div id="leaflet-map"></div></div>
-      <div class="route-bar">
-        <div style="font-size:18px">🗺️</div>
-        <div style="flex:1"><div class="rlabel">ระยะทาง</div><div class="rval" id="route-dist">--</div></div>
-        <div class="rdivider"></div>
-        <div style="text-align:center;min-width:58px"><div class="rlabel">เวลาโดยประมาณ</div><div class="rval" id="route-time">--</div></div>
-      </div>
-      <button class="btn-maps" onclick="openExternalMap()">🗺️ เปิดใน Google Maps / Apple Maps</button>
-    </div>
-
     <!-- ACTIVE JOB -->
     <div class="active-job" id="active-wrap" style="display:none">
       <div class="aj-head">
@@ -501,6 +489,18 @@ input:focus{outline:none;border-color:var(--blue)}
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- MAP — อยู่ใต้ active-wrap -->
+    <div id="map-section" style="display:none;flex-direction:column;gap:9px">
+      <div class="map-wrap"><div id="leaflet-map"></div></div>
+      <div class="route-bar">
+        <div style="font-size:18px">🗺️</div>
+        <div style="flex:1"><div class="rlabel">ระยะทาง</div><div class="rval" id="route-dist">--</div></div>
+        <div class="rdivider"></div>
+        <div style="text-align:center;min-width:58px"><div class="rlabel">เวลาโดยประมาณ</div><div class="rval" id="route-time">--</div></div>
+      </div>
+      <button class="btn-maps" onclick="openExternalMap()">🗺️ เปิดใน Google Maps / Apple Maps</button>
     </div>
 
     <!-- READY -->
@@ -1438,7 +1438,10 @@ function setActiveJobUI(j){
     hasContact=true;
   } else { phoneRow.style.display='none'; }
   // แสดง contact box เฉพาะเมื่อมีข้อมูล
-  if(contactBox) contactBox.style.display=hasContact?'flex':'none';
+  if(contactBox){
+    contactBox.style.display = hasContact ? 'flex' : 'none';
+    contactBox.style.flexDirection = 'column';
+  }
 }
 
 function renderHistory(){
